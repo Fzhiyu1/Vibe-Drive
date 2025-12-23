@@ -1,6 +1,7 @@
 package com.vibe.model.event;
 
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.NotBlank;
 
 import java.time.Instant;
 
@@ -12,6 +13,7 @@ public record AgentStatusChangedEvent(
     @Description("Agent是否运行中")
     boolean running,
 
+    @NotBlank(message = "Event type cannot be empty")
     @Description("状态变化事件：started/stopped/error")
     String event,
 

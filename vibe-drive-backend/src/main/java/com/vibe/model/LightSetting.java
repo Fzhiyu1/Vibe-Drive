@@ -2,6 +2,10 @@ package com.vibe.model;
 
 import com.vibe.model.enums.LightMode;
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
@@ -11,20 +15,25 @@ import java.util.List;
  */
 @Description("氛围灯设置，包含颜色、亮度和动态效果")
 public record LightSetting(
+    @Valid
     @Description("灯光颜色和色温")
     LightColor color,
 
+    @Min(value = 0, message = "Brightness must be at least 0")
+    @Max(value = 100, message = "Brightness must be at most 100")
     @Description("亮度，范围 0-100")
     int brightness,
 
+    @NotNull(message = "Light mode cannot be null")
     @Description("灯光模式：STATIC（静态）/BREATHING（呼吸）/GRADIENT（渐变）/PULSE（脉冲）")
     LightMode mode,
 
+    @Min(value = 0, message = "Transition duration must be non-negative")
     @Description("颜色过渡时长，单位毫秒")
     int transitionDuration,
 
     @Description("分区设置，可选，用于多区域灯光控制")
-    List<ZoneSetting> zones
+    List<@Valid ZoneSetting> zones
 ) {
     /**
      * 默认过渡时长（毫秒）

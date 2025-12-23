@@ -1,6 +1,8 @@
 package com.vibe.model.event;
 
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 
 import java.time.Instant;
 
@@ -9,9 +11,11 @@ import java.time.Instant;
  */
 @Description("Tool执行完成事件")
 public record ToolEndEvent(
+    @NotBlank(message = "Tool name cannot be empty")
     @Description("工具名称")
     String toolName,
 
+    @Min(value = 0, message = "Duration must be non-negative")
     @Description("执行耗时（毫秒）")
     long durationMs,
 

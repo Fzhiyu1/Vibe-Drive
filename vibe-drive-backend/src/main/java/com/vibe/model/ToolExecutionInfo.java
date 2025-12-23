@@ -1,6 +1,8 @@
 package com.vibe.model;
 
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * 工具执行详情
@@ -8,6 +10,7 @@ import dev.langchain4j.model.output.structured.Description;
  */
 @Description("工具执行详情，用于性能分析和调试")
 public record ToolExecutionInfo(
+    @NotBlank(message = "Tool name cannot be empty")
     @Description("工具名称")
     String toolName,
 
@@ -17,6 +20,7 @@ public record ToolExecutionInfo(
     @Description("执行结果（JSON格式）")
     String result,
 
+    @Min(value = 0, message = "Duration must be non-negative")
     @Description("执行耗时（毫秒）")
     Long durationMs,
 

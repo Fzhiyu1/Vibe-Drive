@@ -5,6 +5,9 @@ import com.vibe.model.TokenUsageInfo;
 import com.vibe.model.ToolExecutionInfo;
 import com.vibe.model.enums.AnalyzeAction;
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
@@ -14,21 +17,25 @@ import java.util.List;
  */
 @Description("分析响应，包含动作决策、氛围方案和执行元数据")
 public record AnalyzeResponse(
+    @NotNull(message = "Action cannot be null")
     @Description("动作：APPLY（应用新方案）/NO_ACTION（本次不更新）")
     AnalyzeAction action,
 
     @Description("可选提示信息（通常在 NO_ACTION 时返回原因）")
     String message,
 
+    @Valid
     @Description("生成的氛围方案")
     AmbiencePlan plan,
 
+    @Valid
     @Description("Token 使用统计，用于成本监控")
     TokenUsageInfo tokenUsage,
 
     @Description("工具执行详情，用于性能分析")
-    List<ToolExecutionInfo> toolExecutions,
+    List<@Valid ToolExecutionInfo> toolExecutions,
 
+    @Min(value = 0, message = "Processing time cannot be negative")
     @Description("处理耗时（毫秒）")
     long processingTimeMs
 ) {

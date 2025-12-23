@@ -3,6 +3,8 @@ package com.vibe.model.agent;
 import com.vibe.model.AmbiencePlan;
 import com.vibe.model.Environment;
 import com.vibe.model.enums.SafetyMode;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -14,9 +16,12 @@ import java.time.Instant;
 public record VibeAgentStatus(
     boolean running,
     SafetyMode currentSafetyMode,
+    @Valid
     AmbiencePlan currentPlan,
+    @Valid
     Environment lastEnvironment,
     Instant lastUpdateTime,
+    @Min(value = 0, message = "Total plans generated must be non-negative")
     int totalPlansGenerated,
     Instant startTime
 ) {

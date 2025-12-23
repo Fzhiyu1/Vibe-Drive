@@ -1,6 +1,8 @@
 package com.vibe.model;
 
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * 歌曲信息
@@ -8,21 +10,26 @@ import dev.langchain4j.model.output.structured.Description;
  */
 @Description("歌曲信息")
 public record Song(
+    @NotBlank(message = "Song id cannot be empty")
     @Description("歌曲唯一标识")
     String id,
 
+    @NotBlank(message = "Song title cannot be empty")
     @Description("歌曲名称")
     String title,
 
+    @NotBlank(message = "Artist cannot be empty")
     @Description("艺术家/演唱者")
     String artist,
 
     @Description("专辑名称")
     String album,
 
+    @Min(value = 0, message = "Duration must be non-negative")
     @Description("时长，单位秒")
     int duration,
 
+    @Min(value = 0, message = "BPM must be non-negative")
     @Description("节拍速度 BPM（Beats Per Minute）")
     int bpm,
 

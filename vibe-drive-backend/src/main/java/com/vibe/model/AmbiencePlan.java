@@ -2,6 +2,8 @@ package com.vibe.model;
 
 import com.vibe.model.enums.SafetyMode;
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -15,15 +17,19 @@ public record AmbiencePlan(
     @Description("方案唯一标识符")
     String id,
 
+    @Valid
     @Description("推荐的音乐列表和相关元数据")
     MusicRecommendation music,
 
+    @Valid
     @Description("氛围灯设置，L2专注模式下禁用动态效果，L3静默模式下为null")
     LightSetting light,
 
+    @Valid
     @Description("TTS播报的叙事文本及语音参数")
     Narrative narrative,
 
+    @NotNull(message = "Safety mode cannot be null")
     @Description("当前安全模式：L1_NORMAL（正常）/L2_FOCUS（专注）/L3_SILENT（静默）")
     SafetyMode safetyMode,
 

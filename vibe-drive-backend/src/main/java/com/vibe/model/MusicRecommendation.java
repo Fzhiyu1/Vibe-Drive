@@ -1,6 +1,9 @@
 package com.vibe.model;
 
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -10,8 +13,10 @@ import java.util.List;
  */
 @Description("音乐推荐结果，包含歌曲列表和元数据")
 public record MusicRecommendation(
+    @NotEmpty(message = "Songs list cannot be empty")
+    @Size(max = 10, message = "Songs list cannot exceed 10 items")
     @Description("推荐的歌曲列表，1-10首")
-    List<Song> songs,
+    List<@Valid Song> songs,
 
     @Description("目标情绪标签")
     String mood,
@@ -19,6 +24,7 @@ public record MusicRecommendation(
     @Description("音乐流派")
     String genre,
 
+    @Valid
     @Description("推荐歌曲的BPM（节拍速度）范围")
     BpmRange bpmRange
 ) {

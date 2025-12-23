@@ -2,6 +2,8 @@ package com.vibe.model.agent;
 
 import com.vibe.model.AmbiencePlan;
 import com.vibe.model.enums.NotificationType;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -12,7 +14,9 @@ import java.util.UUID;
  */
 public record VibeNotification(
     String id,
+    @NotNull(message = "Notification type cannot be null")
     NotificationType type,
+    @Valid
     AmbiencePlan plan,
     String summary,
     Instant timestamp

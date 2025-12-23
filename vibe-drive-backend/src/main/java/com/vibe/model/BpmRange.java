@@ -1,6 +1,7 @@
 package com.vibe.model;
 
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.Min;
 
 /**
  * BPM（节拍速度）范围
@@ -8,9 +9,11 @@ import dev.langchain4j.model.output.structured.Description;
  */
 @Description("BPM（节拍速度）范围")
 public record BpmRange(
+    @Min(value = 0, message = "Min BPM must be non-negative")
     @Description("最小BPM值")
     int min,
 
+    @Min(value = 0, message = "Max BPM must be non-negative")
     @Description("最大BPM值")
     int max
 ) {

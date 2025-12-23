@@ -6,6 +6,7 @@ import com.vibe.model.MusicRecommendation;
 import com.vibe.model.Narrative;
 import com.vibe.model.enums.SafetyMode;
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.Valid;
 
 import java.time.Instant;
 
@@ -17,12 +18,15 @@ public record AmbienceChangedEvent(
     @Description("方案ID")
     String planId,
 
+    @Valid
     @Description("音乐推荐")
     MusicRecommendation music,
 
+    @Valid
     @Description("灯光设置")
     LightSetting light,
 
+    @Valid
     @Description("叙事文本")
     Narrative narrative,
 

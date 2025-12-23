@@ -1,6 +1,9 @@
 package com.vibe.model;
 
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 
 /**
  * 灯光颜色配置
@@ -8,9 +11,12 @@ import dev.langchain4j.model.output.structured.Description;
  */
 @Description("灯光颜色配置")
 public record LightColor(
+    @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Invalid hex color format, expected #RRGGBB")
     @Description("十六进制颜色代码，格式 #RRGGBB")
     String hex,
 
+    @Min(value = 2700, message = "Temperature must be at least 2700 K")
+    @Max(value = 6500, message = "Temperature must be at most 6500 K")
     @Description("色温，单位开尔文（K），范围 2700-6500")
     Integer temperature
 ) {

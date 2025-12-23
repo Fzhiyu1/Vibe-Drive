@@ -1,6 +1,8 @@
 package com.vibe.model.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 
@@ -12,7 +14,9 @@ import java.time.Instant;
 public record ApiResponse<T>(
     boolean success,
     T data,
+    @Valid
     ErrorInfo error,
+    @NotNull(message = "Timestamp cannot be null")
     Instant timestamp
 ) {
     /**

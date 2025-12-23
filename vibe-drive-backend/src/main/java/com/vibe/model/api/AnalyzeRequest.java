@@ -2,6 +2,9 @@ package com.vibe.model.api;
 
 import com.vibe.model.Environment;
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.Map;
 
@@ -11,9 +14,12 @@ import java.util.Map;
  */
 @Description("分析请求")
 public record AnalyzeRequest(
+    @NotBlank(message = "Session ID cannot be empty")
     @Description("会话ID（对应 LangChain4j @MemoryId），用于隔离多用户/多车辆上下文")
     String sessionId,
 
+    @NotNull(message = "Environment cannot be null")
+    @Valid
     @Description("环境数据")
     Environment environment,
 

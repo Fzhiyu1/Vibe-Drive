@@ -2,6 +2,9 @@ package com.vibe.model.event;
 
 import com.vibe.model.enums.SafetyMode;
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 
@@ -13,9 +16,12 @@ public record SafetyModeChangedEvent(
     @Description("之前的安全模式")
     SafetyMode previousMode,
 
+    @NotNull(message = "Current mode cannot be null")
     @Description("当前安全模式")
     SafetyMode currentMode,
 
+    @Min(value = 0, message = "Speed must be at least 0")
+    @Max(value = 200, message = "Speed must be at most 200 km/h")
     @Description("当前车速")
     double speed,
 

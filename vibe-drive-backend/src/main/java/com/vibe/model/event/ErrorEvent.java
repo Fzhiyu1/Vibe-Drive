@@ -1,6 +1,7 @@
 package com.vibe.model.event;
 
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.NotBlank;
 
 import java.time.Instant;
 
@@ -9,6 +10,7 @@ import java.time.Instant;
  */
 @Description("错误事件")
 public record ErrorEvent(
+    @NotBlank(message = "Error code cannot be empty")
     @Description("错误码")
     String code,
 

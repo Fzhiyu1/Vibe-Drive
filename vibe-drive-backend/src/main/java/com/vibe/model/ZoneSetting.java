@@ -1,6 +1,10 @@
 package com.vibe.model;
 
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 /**
  * 分区灯光设置
@@ -8,12 +12,16 @@ import dev.langchain4j.model.output.structured.Description;
  */
 @Description("分区灯光设置，用于车内不同区域的独立灯光控制")
 public record ZoneSetting(
+    @NotBlank(message = "Zone name cannot be empty")
     @Description("区域名称，如 dashboard/door/roof/footwell")
     String zone,
 
+    @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Invalid color format, expected #RRGGBB")
     @Description("该区域的颜色，十六进制格式 #RRGGBB")
     String color,
 
+    @Min(value = 0, message = "Brightness must be at least 0")
+    @Max(value = 100, message = "Brightness must be at most 100")
     @Description("该区域的亮度，范围 0-100")
     int brightness
 ) {

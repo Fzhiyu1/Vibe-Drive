@@ -2,6 +2,7 @@ package com.vibe.model;
 
 import dev.langchain4j.model.output.TokenUsage;
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.Min;
 
 /**
  * Token 使用统计
@@ -9,12 +10,15 @@ import dev.langchain4j.model.output.structured.Description;
  */
 @Description("Token使用统计，用于成本监控和分析")
 public record TokenUsageInfo(
+    @Min(value = 0, message = "Input token count must be non-negative")
     @Description("输入Token数量")
     Integer inputTokenCount,
 
+    @Min(value = 0, message = "Output token count must be non-negative")
     @Description("输出Token数量")
     Integer outputTokenCount,
 
+    @Min(value = 0, message = "Total token count must be non-negative")
     @Description("总Token数量")
     Integer totalTokenCount
 ) {

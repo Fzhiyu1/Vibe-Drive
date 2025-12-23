@@ -1,6 +1,8 @@
 package com.vibe.model.agent;
 
 import com.vibe.model.enums.SafetyMode;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 /**
  * Vibe 命令
@@ -36,7 +38,10 @@ public sealed interface VibeCommand permits
     /**
      * 设置安全模式命令
      */
-    record SetSafetyMode(SafetyMode mode) implements VibeCommand {
+    record SetSafetyMode(
+        @NotNull(message = "Safety mode cannot be null")
+        SafetyMode mode
+    ) implements VibeCommand {
         public SetSafetyMode {
             if (mode == null) {
                 throw new IllegalArgumentException("Safety mode cannot be null");
@@ -62,7 +67,11 @@ public sealed interface VibeCommand permits
     /**
      * 设置偏好命令
      */
-    record SetPreference(String key, Object value) implements VibeCommand {
+    record SetPreference(
+        @NotBlank(message = "Preference key cannot be empty")
+        String key,
+        Object value
+    ) implements VibeCommand {
         public SetPreference {
             if (key == null || key.isBlank()) {
                 throw new IllegalArgumentException("Preference key cannot be empty");

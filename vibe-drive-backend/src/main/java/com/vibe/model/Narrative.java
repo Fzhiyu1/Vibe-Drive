@@ -2,6 +2,10 @@ package com.vibe.model;
 
 import com.vibe.model.enums.NarrativeEmotion;
 import dev.langchain4j.model.output.structured.Description;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * 叙事文本
@@ -9,15 +13,21 @@ import dev.langchain4j.model.output.structured.Description;
  */
 @Description("叙事文本，用于TTS语音播报，将环境与音乐进行时空编织")
 public record Narrative(
+    @NotBlank(message = "Narrative text cannot be empty")
+    @Size(max = 500, message = "Narrative text too long, max 500 characters")
     @Description("播报文本内容，应简短温馨，不超过500字")
     String text,
 
     @Description("语音角色ID，默认为 default")
     String voice,
 
+    @DecimalMin(value = "0.5", message = "Speed must be at least 0.5")
+    @DecimalMax(value = "2.0", message = "Speed must be at most 2.0")
     @Description("语速，范围 0.5-2.0，1.0为正常速度")
     double speed,
 
+    @DecimalMin(value = "0.0", message = "Volume must be at least 0")
+    @DecimalMax(value = "1.0", message = "Volume must be at most 1.0")
     @Description("音量，范围 0-1，L3静默模式下会自动降低30%")
     double volume,
 
