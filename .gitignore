@@ -3,6 +3,9 @@
 *.iml
 .vscode/
 
+# Claude Code local settings
+.claude/
+
 # Build
 target/
 build/
