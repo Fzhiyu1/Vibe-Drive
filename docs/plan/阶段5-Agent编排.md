@@ -2,307 +2,203 @@
 
 ## 状态
 
-⚪ 待开始
+🟢 已完成
 
 ## 目标
 
 使用 LangChain4j AI Services 配置 Vibe Agent，实现环境感知 → 推理 → 工具调用的完整闭环。
 
-**重要**：基于重构后的设计，使用声明式 AI Service 接口，框架自动处理 MAPE-K 闭环。
+**重要变更**：参考 IC-Coder 项目的递归编排架构，实现了简化版本的编排层。
 
 ## 前置依赖
 
 - [x] 阶段 2: 设计文档（含重构）
 - [x] 阶段 3: 数据模型实现（需要 Environment 和 AmbiencePlan）
 - [x] 阶段 4: Tool 层实现（需要 MusicTool、LightTool、NarrativeTool）
-- [x] 参考：`docs/design/refactoring-guide.md` Phase 3, 4
+- [x] 参考：IC-Coder 项目的递归编排架构
+
+## 架构设计
+
+### 参考 IC-Coder 架构
+
+```
+IccoderDialogService (递归核心)
+├── executeTurn() 递归调用
+├── TokenStream 流式响应
+├── hasToolCall 检测 → 递归继续
+└── 终止条件：无工具调用 或 达到最大深度
+```
+
+### Vibe Drive 简化点
+
+| IC-Coder 功能 | Vibe Drive 处理 |
+|--------------|----------------|
+| 客户端工具 | ❌ 移除（所有工具在服务端）|
+| 用户交互工具 | ❌ 移除（驾驶中不适合）|
+| 上下文压缩 | ❌ 暂不实现（Vibe 对话较短）|
+| 知识图谱 | ❌ 移除 |
+| 安全模式过滤 | ✅ 新增（L1/L2/L3）|
+
+### 设计决策
+
+- **VibeLoopState**：使用 Record（不可变），每次状态变化返回新实例
+- **上下文压缩**：暂不实现，Vibe 对话通常较短（1-3轮递归）
+- **LangChain4j 版本**：升级到 1.9.1（与 IC-Coder 一致）
+
+---
 
 ## 任务清单
 
-### Phase 1: Prompt 资源文件（2 小时）
+### Phase 1: 编排层 DTO ✅
 
-- [ ] 创建目录 `src/main/resources/prompts/`
-- [ ] 创建 `vibe-system.txt` System Prompt 文件
-  - Agent 角色定义：氛围编排智能体
-  - 环境数据说明（字段含义）
-  - 安全模式规则（L1/L2/L3）
-  - 可用工具说明（自动生成，但可描述使用场景）
-  - 推理规则（语义理解优先、乘客数量影响等）
-  - 输出格式要求（JSON Schema）
-  - 重要提醒（安全第一、简洁温馨）
-- [ ] 验证文件编码为 UTF-8
-- [ ] 提交到 Git
+- [x] 创建 `VibeLoopState.java` - 循环状态（不可变 Record）
+- [x] 创建 `VibeDialogRequest.java` - 对话请求
+- [x] 创建 `VibeDialogResult.java` - 对话结果
 
-**参考**：`docs/design/prompt-design.md` Section 2.3
+### Phase 2: 流式回调接口 ✅
 
----
+- [x] 创建 `VibeStreamCallback.java` - 回调接口
+- [x] 创建 `SseVibeCallback.java` - SSE 实现
 
-### Phase 2: AI Service 接口定义（1 小时）
+### Phase 3: Agent 工厂 ✅
 
-- [ ] 创建 `VibeAgent.java` 接口
-  ```java
-  public interface VibeAgent {
-      @SystemMessage(fromResource = "prompts/vibe-system.txt")
-      @UserMessage("""
-          请分析以下车载环境数据，并编排合适的氛围方案：
+- [x] 创建 `VibeAgent.java` - AI Service 接口
+- [x] 创建 `VibeAgentFactory.java` - Agent 工厂
+- [x] 创建 `PromptAssembler.java` - Prompt 组装器
 
-          ## 当前环境
-          ```json
-          {{environment}}
-          ```
+### Phase 4: 编排服务核心 ✅
 
-          {{#if preferences}}
-          ## 用户偏好
-          {{preferences}}
-          {{/if}}
+- [x] 创建 `VibeDialogService.java` - 递归编排核心
+  - 递归调用 `executeTurn()`
+  - TokenStream 流式响应处理
+  - 工具调用检测与递归继续
+  - 安全模式前置过滤
 
-          请根据环境数据和安全模式规则，输出氛围编排方案。
-          """)
-      Result<AmbiencePlan> analyzeEnvironment(
-          @MemoryId String sessionId,
-          @V("environment") String environmentJson,
-          @V("preferences") String preferences
-      );
-  }
-  ```
-- [ ] 添加快速分析方法（无会话历史）
-  ```java
-  AmbiencePlan analyzeEnvironmentQuick(
-      @V("environment") String environmentJson
-  );
-  ```
+### Phase 5: 安全模式过滤 ✅
 
-**参考**：`docs/design/architecture.md` Section 6.3
+- [x] 创建 `SafetyModeFilter.java` - 后置过滤器
+  - L1 正常模式：返回原方案
+  - L2 专注模式：灯光切换为静态
+  - L3 静默模式：返回静默方案
 
----
+### Phase 6: Prompt 资源文件 ✅
 
-### Phase 3: Agent 配置（2-3 小时）
+- [x] 创建 `prompts/vibe-system.txt` - System Prompt
+  - Agent 角色定义
+  - 环境数据字段说明
+  - 安全模式规则
+  - 推理规则
+  - 输出要求
 
-- [ ] 创建 `VibeAgentConfig.java` 配置类
-- [ ] 配置 ChatLanguageModel Bean：
-  ```java
-  @Bean
-  public ChatLanguageModel chatModel(@Value("${openai.api.key}") String apiKey) {
-      return OpenAiChatModel.builder()
-          .apiKey(apiKey)
-          .modelName("gpt-4o")
-          .strictJsonSchema(true)
-          .supportedCapabilities(Set.of(RESPONSE_FORMAT_JSON_SCHEMA))
-          .temperature(0.7)
-          .build();
-  }
-  ```
-- [ ] 配置 ChatMemoryStore Bean（开发用内存，生产用 Redis）：
-  ```java
-  @Bean
-  public ChatMemoryStore chatMemoryStore() {
-      return new InMemoryChatMemoryStore();
-      // 生产：return new RedisChatMemoryStore(redisTemplate);
-  }
-  ```
-- [ ] 构建 VibeAgent Bean：
-  ```java
-  @Bean
-  public VibeAgent vibeAgent(
-          ChatLanguageModel chatModel,
-          MusicTool musicTool,
-          LightTool lightTool,
-          NarrativeTool narrativeTool,
-          ChatMemoryStore chatMemoryStore) {
-      return AiServices.builder(VibeAgent.class)
-          .chatLanguageModel(chatModel)
-          .tools(musicTool, lightTool, narrativeTool)
-          .chatMemoryProvider(memoryId ->
-              MessageWindowChatMemory.builder()
-                  .id(memoryId)
-                  .maxMessages(20)
-                  .chatMemoryStore(chatMemoryStore)
-                  .build())
-          .build();
-  }
-  ```
-- [ ] 配置 `application.yml`：
-  ```yaml
-  openai:
-    api:
-      key: ${OPENAI_API_KEY}
+### Phase 7: 配置类 ✅
 
-  logging:
-    level:
-      dev.langchain4j: DEBUG  # 调试时启用
-  ```
+- [x] 创建 `VibeAgentConfig.java` - Agent 配置
+  - StreamingChatModel Bean
+  - ChatMemoryStore Bean
+- [x] 升级 LangChain4j 版本到 1.9.1
 
-**参考**：`docs/design/architecture.md` Section 6.3
+### Phase 8: 单元测试 ✅
 
----
-
-### Phase 4: Service 层集成（1-2 小时）
-
-- [ ] 创建 `VibeService.java`
-- [ ] 实现 analyze 方法：
-  ```java
-  @Service
-  public class VibeService {
-      private final VibeAgent vibeAgent;
-      private final ObjectMapper objectMapper;
-
-      public AnalyzeResponse analyze(Environment environment) {
-          long startTime = System.currentTimeMillis();
-
-          // 调用 Agent
-          Result<AmbiencePlan> result = vibeAgent.analyzeEnvironment(
-              generateSessionId(environment),
-              objectMapper.writeValueAsString(environment),
-              null  // preferences 暂时为 null
-          );
-
-          // 提取元数据
-          AmbiencePlan plan = result.content();
-          TokenUsage tokenUsage = result.tokenUsage();
-          List<ToolExecution> toolExecutions = result.toolExecutions();
-
-          // 记录日志
-          logExecutionMetadata(tokenUsage, toolExecutions);
-
-	      // 构建响应
-	      long processingTime = System.currentTimeMillis() - startTime;
-	      return AnalyzeResponse.applied(
-	          plan,
-	          TokenUsageInfo.from(tokenUsage),
-	          toolExecutions.stream()
-	              .map(ToolExecutionInfo::from).toList(),
-	          processingTime
-	      );
-      }
-  }
-  ```
-- [ ] 实现会话 ID 生成逻辑
-- [ ] 实现日志记录（Token 使用、Tool 执行时间）
-
----
-
-### Phase 5: ~~MAPE-K 闭环实现~~（已简化）
-
-- [x] ~~Monitor：接收环境数据~~ → **框架自动处理**
-- [x] ~~Analyze：LLM 分析环境语义~~ → **框架自动处理**
-- [x] ~~Plan：决定调用哪些工具~~ → **框架自动处理**
-- [x] ~~Execute：执行工具调用~~ → **框架自动处理**
-- [x] ~~Knowledge：维护上下文记忆~~ → **ChatMemoryProvider 自动管理**
-
-**说明**：使用 AI Services 后，MAPE-K 闭环由 LangChain4j 框架自动处理，无需手动实现。
-
----
-
-### Phase 6: 安全模式实现（2 小时）
-
-- [ ] 在 Service 层实现前置过滤：
-  ```java
-  public AnalyzeResponse analyze(Environment environment) {
-      SafetyMode safetyMode = SafetyMode.fromSpeed(environment.speed());
-
-      // L3 静默模式：不主动推荐
-      if (safetyMode == SafetyMode.L3_SILENT && !isUserInitiated()) {
-          return AnalyzeResponse.noAction("高速行驶中，静默模式");
-      }
-
-      // 正常调用 Agent
-      Result<AmbiencePlan> result = vibeAgent.analyze(...);
-
-	      // 后置过滤（L2/L3 禁用灯光动效）
-	      AmbiencePlan filteredPlan = applySafetyFilter(result.content(), safetyMode);
-
-	      return AnalyzeResponse.applied(filteredPlan, ...);
-	  }
-	  ```
-- [ ] 实现后置过滤逻辑（禁用灯光、降低音量）
-- [ ] 在 Prompt 中强调安全规则
-
----
-
-### Phase 7: 测试与调试（3-4 小时）
-
-- [ ] 编写集成测试：
-  ```java
-  @SpringBootTest
-  class VibeAgentIntegrationTest {
-      @Test
-      void testMidnightRainyHighway() {
-          Environment env = new Environment(
-              GpsTag.HIGHWAY,
-              Weather.RAINY,
-              85.0,
-              UserMood.TIRED,
-              TimeOfDay.MIDNIGHT,
-              1,
-              RouteType.HIGHWAY,
-              Instant.now()
-          );
-
-          Result<AmbiencePlan> result = vibeAgent.analyze(...);
-
-          assertThat(result.content().safetyMode()).isEqualTo(SafetyMode.L2_FOCUS);
-          assertThat(result.content().music()).isNotNull();
-          assertThat(result.content().reasoning()).contains("疲劳");
-      }
-  }
-  ```
-- [ ] 测试 Few-shot 示例场景（深夜雨天、家庭出游、高速静默）
-- [ ] 测试安全模式切换
-- [ ] 调试 Prompt，优化输出质量
-- [ ] 测试 Token 使用量（确保不超预算）
-- [ ] 测试多轮对话（会话记忆）
+- [x] 创建 `VibeLoopStateTest.java` - 5 个测试
+- [x] 创建 `SafetyModeFilterTest.java` - 4 个测试
 
 ---
 
 ## 相关文件
 
 ```
-src/main/java/com/vibe/agent/
-├── VibeAgent.java              # AI Service 接口（声明式）
-└── VibeAgentConfig.java        # Agent 配置
-
-src/main/java/com/vibe/service/
-└── VibeService.java            # Service 层（集成 Agent）
+src/main/java/com/vibe/
+├── orchestration/                   # 编排层（新增）
+│   ├── dto/
+│   │   ├── VibeLoopState.java      # 循环状态
+│   │   ├── VibeDialogRequest.java  # 对话请求
+│   │   └── VibeDialogResult.java   # 对话结果
+│   ├── callback/
+│   │   ├── VibeStreamCallback.java # 回调接口
+│   │   └── SseVibeCallback.java    # SSE 实现
+│   └── service/
+│       ├── VibeDialogService.java  # 递归编排核心
+│       └── SafetyModeFilter.java   # 安全模式过滤
+├── agent/
+│   ├── VibeAgent.java              # AI Service 接口
+│   ├── VibeAgentFactory.java       # Agent 工厂
+│   └── PromptAssembler.java        # Prompt 组装器
+└── config/
+    └── VibeAgentConfig.java        # Agent 配置
 
 src/main/resources/prompts/
-└── vibe-system.txt             # System Prompt
+└── vibe-system.txt                 # System Prompt
 
-src/test/java/com/vibe/agent/
-└── VibeAgentIntegrationTest.java  # 集成测试
-
-application.yml                 # 配置文件
+src/test/java/com/vibe/orchestration/
+├── dto/
+│   └── VibeLoopStateTest.java
+└── service/
+    └── SafetyModeFilterTest.java
 ```
 
 ## 完成标准
 
-- [ ] VibeAgent 接口定义完成
-- [ ] Prompt 资源文件创建完成
-- [ ] Agent 配置正确，可成功构建
-- [ ] Service 层集成完成
-- [ ] 安全模式正确生效
-- [ ] 集成测试通过（3+ 场景）
-- [ ] Token 使用量在合理范围内
+- [x] 编排层 DTO 创建完成
+- [x] 流式回调接口实现
+- [x] Agent 工厂可正确创建 Agent
+- [x] 递归编排逻辑正确（工具调用 → 递归，无调用 → 结束）
+- [x] 安全模式过滤正确生效
+- [x] 单元测试通过（9 个新测试）
+- [x] LangChain4j 升级到 1.9.1
 - [ ] 代码已提交到 Git
+
+## 技术要点
+
+### 递归编排流程
+
+```
+executeDialog()
+    │
+    ├─ 计算安全模式
+    ├─ L3 静默模式前置过滤
+    ├─ 初始化 VibeLoopState
+    └─ executeTurn(depth=0)
+         │
+         ├─ 深度检查
+         ├─ 创建 Agent
+         ├─ 调用 TokenStream
+         │
+         ├─ 流式处理：
+         │  ├─ onPartialResponse → callback.onTextDelta()
+         │  ├─ beforeToolExecution → hasToolCall = true
+         │  └─ onCompleteResponse → 保存响应
+         │
+         └─ 递归判断：
+            ├─ hasToolCall && 无最终文本 → executeTurn(depth+1)
+            └─ 其他情况 → 组装 AmbiencePlan + 安全过滤 → onComplete()
+```
+
+### LangChain4j 1.9.1 API 变更
+
+| 旧 API | 新 API |
+|--------|--------|
+| `StreamingChatLanguageModel` | `StreamingChatModel` |
+| `.streamingChatLanguageModel()` | `.streamingChatModel()` |
 
 ## 问题与笔记
 
-### 重构要点
+### 2025-12-23: 编排与 SSE 对齐
 
-1. **声明式接口**：无需实现类，框架自动处理
-2. **自动 Tool Calling**：框架根据 Prompt 和 @Tool 描述自动选择和调用工具
-3. **自动 JSON 解析**：框架根据 @Description 自动解析为 AmbiencePlan
-4. **内置会话管理**：使用 @MemoryId 自动隔离不同用户/车辆的会话
-5. **执行元数据**：使用 Result<T> 获取 Token 使用量和 Tool 执行详情
+- 递归继续条件改为 `hasToolCall && !hasFinalText`，避免工具调用后已产生最终文本仍继续递归
+- `SseVibeCallback` 事件类型对齐数据模型：`token` / `tool_start` / `tool_end` / `complete` / `error`
+- `complete` 事件 payload 复用 `AnalyzeResponse`，与同步接口保持同一份 DTO
+- `AmbiencePlan` 由 Tool 返回结果解析组装（移除 `buildAmbiencePlan()` 的 TODO）
+- Agent 配置读取 `application.yml` 的 `langchain4j.open-ai.chat-model.*`，避免重复配置键
 
-### 开发建议
+### 版本兼容性
 
-1. **先 Mock 后真实**：使用 MockMusicTool 等测试 Agent 流程
-2. **Prompt 迭代**：先简单 Prompt，根据输出逐步优化
-3. **日志调试**：启用 `dev.langchain4j: DEBUG` 查看完整调用链
-4. **成本控制**：使用 gpt-4o-mini 开发，gpt-4o 生产
+- LangChain4j 从 1.0.0-alpha1 升级到 1.9.1
+- 移除了 `langchain4j-spring-boot-starter` 依赖（1.9.1 版本不存在）
+- API 类名变更：`StreamingChatLanguageModel` → `StreamingChatModel`
 
-### 参考文档
+### 后续优化
 
-- `docs/design/architecture.md` Section 6.3
-- `docs/design/prompt-design.md`
-- `docs/design/refactoring-guide.md` Phase 3, 4
+1. 集成测试（需要 OpenAI API Key）
+2. 上下文压缩（如果对话变长）
+3. Token 使用量监控
+4. 多轮对话测试

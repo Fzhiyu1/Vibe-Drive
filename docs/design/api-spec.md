@@ -18,12 +18,12 @@
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | `/vibe/analyze` | 分析环境，返回氛围方案（同步） |
-| GET | `/vibe/analyze/stream` | 流式分析环境（SSE） |
-| GET | `/vibe/status` | 获取 Vibe Agent 状态 |
+| POST | `/vibe/analyze/stream` | 流式分析环境（SSE） |
+| GET | `/vibe/status` | 获取会话状态 |
 | GET | `/vibe/events` | 订阅实时事件（SSE） |
-| POST | `/vibe/control` | 控制 Vibe Agent |
 | POST | `/vibe/feedback` | 提交用户反馈 |
-| GET | `/vibe/history` | 获取氛围历史 |
+
+> 注：当前代码实现范围（阶段 6）：`analyze/status/feedback/analyze/stream/events`；其他接口为设计预留，未在当前阶段实现。
 
 ---
 
@@ -204,12 +204,12 @@ Content-Type: application/json
 
 ### 3.2 获取状态 - GET /vibe/status
 
-获取 Vibe Agent 当前状态。
+获取指定会话的运行状态与最近一次氛围方案。
 
 **请求**
 
 ```http
-GET /api/vibe/status
+GET /api/vibe/status?sessionId=user-123-vehicle-001
 ```
 
 **响应**
@@ -218,8 +218,9 @@ GET /api/vibe/status
 {
   "success": true,
   "data": {
-    "running": true,
-    "safetyMode": "L1_NORMAL",
+    "sessionId": "user-123-vehicle-001",
+    "agentRunning": false,
+    "currentSafetyMode": "L1_NORMAL",
     "currentPlan": {
       "id": "plan_20251223_001",
       "music": { ... },
@@ -235,12 +236,7 @@ GET /api/vibe/status
       "passengerCount": 1,
       "routeType": "urban"
     },
-    "lastUpdateTime": "2025-12-23T10:25:00Z",
-    "stats": {
-      "totalPlansGenerated": 42,
-      "avgProcessingTimeMs": 1650,
-      "uptime": "2h 30m"
-    }
+    "lastUpdateTime": "2025-12-23T10:25:00Z"
   },
   "timestamp": "2025-12-23T10:30:00Z"
 }
@@ -387,14 +383,15 @@ GET /api/vibe/history?limit=10&offset=0
 }
 ```
 
-### 3.6 流式分析环境 - GET /vibe/analyze/stream
+### 3.6 流式分析环境 - POST /vibe/analyze/stream
 
 使用 Server-Sent Events (SSE) 流式返回分析过程和结果。适用于需要实时展示 LLM 输出的场景。
 
 **请求**
 
 ```http
-GET /api/vibe/analyze/stream?sessionId=user-123-vehicle-001&environment={...}
+POST /api/vibe/analyze/stream?sessionId=user-123-vehicle-001&debug=false
+Content-Type: application/json
 Accept: text/event-stream
 ```
 
@@ -403,9 +400,12 @@ Accept: text/event-stream
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | sessionId | string | 是 | 会话 ID |
-| environment | string | 是 | URL 编码的环境 JSON |
 | preferences | string | 否 | URL 编码的用户偏好 JSON |
 | debug | boolean | 否 | 是否开启调试事件（`token/tool_start/tool_end`），默认 false |
+
+**请求体**
+
+环境数据 `Environment` JSON。
 
 **SSE 事件流示例**
 
@@ -461,12 +461,13 @@ import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 const params = new URLSearchParams({
   sessionId: 'user-123-vehicle-001',
-  environment: JSON.stringify(environmentData),
-  debug: 'false'
+  debug: 'false',
 });
 
 await fetchEventSource(`/api/vibe/analyze/stream?${params}`, {
-  headers: { Authorization: `Bearer ${token}` },
+  method: 'POST',
+  body: JSON.stringify(environmentData),
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
   onmessage(ev) {
     if (ev.event === 'token') {
       const { content } = JSON.parse(ev.data);
@@ -807,115 +808,41 @@ public class VibeController {
 @RequiredArgsConstructor
 public class VibeStreamController {
 
-    private final VibeAgent vibeAgent;
+    private final VibeDialogService dialogService;
+    private final SseEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
-    private final AmbienceEventPublisher ambienceEventPublisher;
-    private final SafetyModeEventPublisher safetyModeEventPublisher;
 
     /**
      * 流式分析环境（SSE）
      * 使用 LangChain4j TokenStream 实现流式输出
      */
-    @GetMapping(value = "/analyze/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> analyzeStream(
+    @PostMapping(value = "/analyze/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter analyzeStream(
             @RequestParam String sessionId,
-            @RequestParam String environment,
+            @RequestBody Environment environment,
             @RequestParam(required = false) String preferences,
             @RequestParam(defaultValue = "false") boolean debug) {
 
-        return Flux.create(sink -> {
-            long startTime = System.currentTimeMillis();
-
-            // 获取 TokenStream（LangChain4j 流式输出）
-            TokenStream tokenStream = vibeAgent.analyzeEnvironmentStreaming(
-                sessionId, environment, preferences
-            );
-
-            // 调试事件：逐 token 输出（默认关闭，避免 UI 过于“吵”）
-            if (debug) {
-                tokenStream.onNext(token -> sink.next(ServerSentEvent.<String>builder()
-                    .event("token")
-                    .data(toJson(new TokenEvent(token)))
-                    .build()));
-            }
-
-            // 处理完成事件
-            tokenStream.onComplete(response -> {
-                long processingTime = System.currentTimeMillis() - startTime;
-
-                AnalyzeResponse analyzeResponse = AnalyzeResponse.applied(
-                    response.content(),
-                    TokenUsageInfo.from(response.tokenUsage()),
-                    response.toolExecutions().stream().map(ToolExecutionInfo::from).toList(),
-                    processingTime
-                );
-
-                sink.next(ServerSentEvent.<String>builder()
-                    .event("complete")
-                    .data(toJson(analyzeResponse))
-                    .build());
-
-                sink.complete();
-            });
-
-            // 处理错误事件
-            tokenStream.onError(error -> {
-                sink.next(ServerSentEvent.<String>builder()
-                    .event("error")
-                    .data(toJson(new ErrorEvent("LLM_ERROR", error.getMessage())))
-                    .build());
-                sink.complete();
-            });
-
-            // 启动流
-            tokenStream.start();
-        });
+        SseEmitter emitter = new SseEmitter(5 * 60 * 1000L);
+        SseVibeCallback callback = new SseVibeCallback(emitter, objectMapper, sessionId, debug);
+        dialogService.executeDialog(VibeDialogRequest.of(sessionId, environment, preferences), callback);
+        return emitter;
     }
 
     /**
      * 订阅实时事件（SSE）
      */
     @GetMapping(value = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> subscribeEvents(
+    public SseEmitter subscribeEvents(
             @RequestParam String sessionId,
-            @RequestParam(defaultValue = "ambience,safety,status,environment") String topics) {
+            @RequestParam(required = false) Set<String> topics) {
 
-        Set<String> topicSet = Set.of(topics.split(","));
-
-        return Flux.merge(
-            // 氛围变化事件
-            topicSet.contains("ambience") ?
-                ambienceEventPublisher.subscribe(sessionId)
-                    .map(event -> ServerSentEvent.<String>builder()
-                        .event("ambience_changed")
-                        .data(toJson(event))
-                        .build()) :
-                Flux.empty(),
-
-            // 安全模式变化事件
-            topicSet.contains("safety") ?
-                safetyModeEventPublisher.subscribe(sessionId)
-                    .map(event -> ServerSentEvent.<String>builder()
-                        .event("safety_mode_changed")
-                        .data(toJson(event))
-                        .build()) :
-                Flux.empty(),
-
-            // 心跳事件（每 30 秒）
-            Flux.interval(Duration.ofSeconds(30))
-                .map(tick -> ServerSentEvent.<String>builder()
-                    .event("heartbeat")
-                    .data(toJson(new HeartbeatEvent(Instant.now())))
-                    .build())
-        );
-    }
-
-    private String toJson(Object obj) {
-        try {
-            return objectMapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        SseEmitter emitter = new SseEmitter(5 * 60 * 1000L);
+        eventPublisher.register(sessionId, emitter, topics);
+        emitter.onCompletion(() -> eventPublisher.unregister(sessionId, emitter));
+        emitter.onTimeout(() -> eventPublisher.unregister(sessionId, emitter));
+        emitter.onError(e -> eventPublisher.unregister(sessionId, emitter));
+        return emitter;
     }
 }
 ```

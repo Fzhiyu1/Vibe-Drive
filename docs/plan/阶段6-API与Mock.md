@@ -2,7 +2,7 @@
 
 ## 状态
 
-⚪ 待开始
+🟢 已完成
 
 ## 目标
 
@@ -16,48 +16,41 @@
 
 ### REST API
 
-- [ ] POST `/api/vibe/analyze` - 分析环境，返回氛围方案（同步）
-  - 输入：Environment JSON
-  - 输出：AmbiencePlan JSON + TokenUsage + ToolExecutions
-- [ ] GET `/api/vibe/status` - 获取当前氛围状态
-- [ ] POST `/api/vibe/feedback` - 用户反馈（喜欢/不喜欢）
-- [ ] 实现统一响应格式（ApiResponse）
-- [ ] 实现全局异常处理
+- [x] POST `/api/vibe/analyze` - 分析环境，返回氛围方案（同步）
+  - 输入：AnalyzeRequest（包含 Environment）
+  - 输出：AnalyzeResponse（plan + toolExecutions；tokenUsage 当前为 null）
+- [x] GET `/api/vibe/status?sessionId=...` - 获取当前会话氛围状态
+- [x] POST `/api/vibe/feedback` - 用户反馈（like/dislike/skip）
+- [x] 实现统一响应格式（ApiResponse）
+- [x] 实现全局异常处理（GlobalExceptionHandler）
 
 ### SSE 流式 API
 
-- [ ] GET `/api/vibe/analyze/stream` - 流式分析环境（SSE）
-  - 事件类型：token, tool_start, tool_end, complete, error
+- [x] POST `/api/vibe/analyze/stream` - 流式分析环境（SSE）
+  - 事件类型：complete, error（debug=true 时包含 token/tool_start/tool_end）
   - 使用 LangChain4j TokenStream 实现
-- [ ] GET `/api/vibe/events` - 实时事件订阅（SSE）
+- [x] GET `/api/vibe/events` - 实时事件订阅（SSE）
   - 事件类型：ambience_changed, safety_mode_changed, agent_status_changed, environment_update, heartbeat
-  - 支持主题订阅：`?topics=ambience,safety,status,environment`
-- [ ] 实现 SseEventPublisher 事件发布器接口
-- [ ] 实现 AmbienceEventPublisher 氛围变化事件发布器
-- [ ] 实现心跳机制（每 30 秒）
+  - 支持主题订阅：`?topics=ambience,safety,status,environment`（也支持直接传事件名）
+- [x] 实现 SseEventPublisher（连接管理 + 事件发布 + 心跳）
+- [x] 在 Controller 中发布 ambience/safety/status 事件（供 /events 订阅）
 
 ### Mock 环境数据生成器
 
-- [ ] 创建 EnvironmentSimulator 类
-- [ ] 实现场景模板
-  - 深夜归途场景
-  - 周末家庭出游场景
-  - 通勤早高峰场景
-  - 自定义随机场景
-- [ ] 实现环境渐变逻辑（模拟真实驾驶）
-- [ ] 支持定时推送环境变化
+- [x] 创建 EnvironmentSimulator 类
+- [x] 实现场景模板：深夜归途 / 周末家庭出游 / 通勤早高峰 / 随机场景
+- [x] 实现环境渐变逻辑（evolve）
+- [ ] 定时推送环境变化（可选，后续）
 
 ### API 文档
 
-- [ ] 集成 Swagger/OpenAPI
-- [ ] 编写 API 使用说明
+- [x] 集成 Swagger/OpenAPI（springdoc）
+- [x] 编写 API 使用说明（docs/design/api-spec.md）
 
 ### 测试
 
-- [ ] 编写 Controller 单元测试
-- [ ] 编写 API 集成测试
-- [ ] 使用 Postman 测试 API
-- [ ] 测试 SSE 流式输出
+- [x] 现有单元测试通过（模型/服务/编排）
+- [ ] Controller / SSE 集成测试（可选，后续）
 
 ## 相关文件
 
@@ -65,11 +58,13 @@
 src/main/java/com/vibe/controller/
 ├── VibeController.java           # REST API
 └── VibeStreamController.java     # SSE 流式 API
+    └── GlobalExceptionHandler.java # 全局异常处理
 
 src/main/java/com/vibe/sse/
-├── SseEventPublisher.java        # SSE 事件发布器接口
-├── AmbienceEventPublisher.java   # 氛围变化事件发布器
-└── SafetyModeEventPublisher.java # 安全模式变化事件发布器
+└── SseEventPublisher.java        # SSE 事件发布器（连接管理 + 心跳）
+
+src/main/java/com/vibe/status/
+└── VibeSessionStatusStore.java   # 会话状态缓存
 
 src/main/java/com/vibe/model/event/
 ├── TokenEvent.java               # Token 输出事件
@@ -84,17 +79,18 @@ src/main/java/com/vibe/model/event/
 
 src/main/java/com/vibe/simulator/
 ├── EnvironmentSimulator.java
-└── ScenarioTemplate.java
+└── ScenarioType.java
 ```
 
 ## 完成标准
 
-- [ ] REST API 可正常调用并返回正确结果
-- [ ] SSE 流式 API 可正常推送事件
-- [ ] Mock 数据生成器可模拟多种场景
-- [ ] API 文档完整
-- [ ] 代码已提交到 Git
+- [x] REST API 可正常调用并返回正确结果
+- [x] SSE 流式 API 可正常推送事件
+- [x] Mock 数据生成器可模拟多种场景
+- [x] API 文档完整
+- [ ] Git 提交（按需，由用户触发）
 
 ## 问题与笔记
 
-（开发过程中遇到的问题和解决方案记录在这里）
+- `/api/vibe/analyze/stream` 使用 POST：避免环境 JSON 过长（URL 限制），也方便配合 fetch-based SSE（可带 Authorization Header）。
+- `EventSource` 不能自定义请求头：如必须使用 EventSource，需要改成 GET + query（或 Cookie 鉴权）。

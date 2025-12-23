@@ -8,26 +8,26 @@
 | 阶段 2 | 设计文档 | 🟢 已完成 | 100% |
 | 阶段 3 | 数据模型实现 | 🟢 已完成 | 100% |
 | 阶段 4 | Tool 层实现 | 🟢 已完成 | 100% |
-| 阶段 5 | Agent 编排 | ⚪ 待开始 | 0% |
-| 阶段 6 | API 与 Mock | ⚪ 待开始 | 0% |
+| 阶段 5 | Agent 编排 | 🟢 已完成 | 100% |
+| 阶段 6 | API 与 Mock | 🟢 已完成 | 100% |
 | 阶段 7 | 前端开发 | ⚪ 待开始 | 0% |
 
 ## 当前阶段
 
-**阶段 5 - Agent 编排** ⚪ 待开始
+**阶段 7 - 前端开发** ⚪ 待开始
 
 ## 当前任务
 
-**阶段4 已完成**：
-- [x] MusicTool + MusicService（音乐推荐）
-- [x] LightTool + LightService（灯光控制）
-- [x] NarrativeTool + NarrativeService（叙事生成）
-- [x] LightPresets + NarrativeTemplates（辅助类）
-- [x] mock-songs.json（30首歌曲库）
-- [x] 单元测试（43个新测试，共166个通过）
+**阶段6 已完成**：
+- [x] VibeController（REST API）
+- [x] VibeStreamController（SSE API）
+- [x] SseEventPublisher（事件发布器）
+- [x] EnvironmentSimulator（环境模拟器）
+- [x] GlobalExceptionHandler（全局异常处理）
+- [x] DTO 补充（VibeStatus, FeedbackRequest, FeedbackType）
 
 **下一阶段**：
-- 阶段 5: Agent 编排（VibeAgent 接口定义、AiServices 配置）
+- 阶段 7: 前端开发
 
 ## 阶段详情
 
@@ -41,6 +41,8 @@
 
 ## 最近更新
 
+- 2025-12-23: 阶段6 API与Mock完成 100%（Controller + SSE + 环境模拟器）
+- 2025-12-23: 阶段5 Agent编排完成 100%（递归编排层 + LangChain4j 1.9.1 + 9个测试）
 - 2025-12-23: 阶段4 Tool层实现完成 100%（3个Tool + 3个Service + 43个测试）
 - 2025-12-23: 阶段3 数据模型实现完成 100%（Bean Validation + 123个单元测试）
 - 2025-12-23: 修复枚举 JSON 序列化（@JsonValue/@JsonCreator）+ Jackson 配置

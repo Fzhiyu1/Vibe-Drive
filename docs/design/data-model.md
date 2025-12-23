@@ -223,7 +223,7 @@ public record AmbiencePlan(
                 id, music, null, narrative.withReducedVolume(), safetyMode, reasoning, createdAt
             );
             case L2_FOCUS -> new AmbiencePlan(
-                id, music, null, narrative, safetyMode, reasoning, createdAt
+                id, music, light != null ? light.forFocusMode() : null, narrative, safetyMode, reasoning, createdAt
             );
             case L1_NORMAL -> this;
         };
