@@ -66,6 +66,7 @@ docs/plan/
 
 ## Git 提交规范
 
+- **只有用户明确指令才能进行 git commit/push 操作**
 - 不添加 AI 工具署名
 - 提交信息简洁明了
 - 格式：`<type>: <description>`
