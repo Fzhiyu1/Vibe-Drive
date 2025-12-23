@@ -164,15 +164,15 @@
           // 记录日志
           logExecutionMetadata(tokenUsage, toolExecutions);
 
-          // 构建响应
-          long processingTime = System.currentTimeMillis() - startTime;
-          return AnalyzeResponse.success(
-              plan,
-              TokenUsageInfo.from(tokenUsage),
-              toolExecutions.stream()
-                  .map(ToolExecutionInfo::from).toList(),
-              processingTime
-          );
+	      // 构建响应
+	      long processingTime = System.currentTimeMillis() - startTime;
+	      return AnalyzeResponse.applied(
+	          plan,
+	          TokenUsageInfo.from(tokenUsage),
+	          toolExecutions.stream()
+	              .map(ToolExecutionInfo::from).toList(),
+	          processingTime
+	      );
       }
   }
   ```
@@ -208,12 +208,12 @@
       // 正常调用 Agent
       Result<AmbiencePlan> result = vibeAgent.analyze(...);
 
-      // 后置过滤（L2/L3 禁用灯光动效）
-      AmbiencePlan filteredPlan = applySafetyFilter(result.content(), safetyMode);
+	      // 后置过滤（L2/L3 禁用灯光动效）
+	      AmbiencePlan filteredPlan = applySafetyFilter(result.content(), safetyMode);
 
-      return AnalyzeResponse.success(filteredPlan, ...);
-  }
-  ```
+	      return AnalyzeResponse.applied(filteredPlan, ...);
+	  }
+	  ```
 - [ ] 实现后置过滤逻辑（禁用灯光、降低音量）
 - [ ] 在 Prompt 中强调安全规则
 
