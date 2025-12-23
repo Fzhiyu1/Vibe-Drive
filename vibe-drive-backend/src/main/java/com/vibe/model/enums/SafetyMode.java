@@ -1,5 +1,8 @@
 package com.vibe.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * 安全模式枚举
  * 根据车速自动判断，限制氛围编排的激进程度
@@ -7,36 +10,34 @@ package com.vibe.model.enums;
 public enum SafetyMode {
     /**
      * L1 正常模式（车速 < 60 km/h）
-     * - 全功能开放
-     * - 支持语音交互、视觉动效、主动推荐
      */
-    L1_NORMAL("正常模式", 0, 60),
+    L1_NORMAL("L1_NORMAL", "正常模式", 0, 60),
 
     /**
      * L2 专注模式（车速 60-100 km/h）
-     * - 禁用视觉动态效果（灯光仅静态/呼吸）
-     * - 降低主动推荐频率
-     * - 语音交互正常
      */
-    L2_FOCUS("专注模式", 60, 100),
+    L2_FOCUS("L2_FOCUS", "专注模式", 60, 100),
 
     /**
      * L3 静默模式（车速 >= 100 km/h）
-     * - 禁用所有主动推荐
-     * - TTS 音量降低 30%
-     * - 禁用视觉动效
-     * - 仅响应明确指令
      */
-    L3_SILENT("静默模式", 100, 200);
+    L3_SILENT("L3_SILENT", "静默模式", 100, 200);
 
+    private final String value;
     private final String displayName;
-    private final int minSpeed;  // 最小车速（含）
-    private final int maxSpeed;  // 最大车速（不含）
+    private final int minSpeed;
+    private final int maxSpeed;
 
-    SafetyMode(String displayName, int minSpeed, int maxSpeed) {
+    SafetyMode(String value, String displayName, int minSpeed, int maxSpeed) {
+        this.value = value;
         this.displayName = displayName;
         this.minSpeed = minSpeed;
         this.maxSpeed = maxSpeed;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
     }
 
     public String getDisplayName() {
@@ -51,17 +52,23 @@ public enum SafetyMode {
         return maxSpeed;
     }
 
+    @JsonCreator
+    public static SafetyMode fromValue(String value) {
+        for (SafetyMode mode : values()) {
+            if (mode.value.equalsIgnoreCase(value)) {
+                return mode;
+            }
+        }
+        throw new IllegalArgumentException("Unknown SafetyMode: " + value);
+    }
+
     /**
      * 根据车速判断安全模式
-     * @param speed 车速（km/h）
-     * @return 对应的安全模式
-     * @throws IllegalArgumentException 如果车速为负数或超过200
      */
     public static SafetyMode fromSpeed(double speed) {
         if (speed < 0 || speed > 200) {
             throw new IllegalArgumentException("Speed must be between 0 and 200 km/h, got: " + speed);
         }
-
         if (speed < 60) {
             return L1_NORMAL;
         } else if (speed < 100) {
@@ -91,7 +98,7 @@ public enum SafetyMode {
     public double getTtsVolumeMultiplier() {
         return switch (this) {
             case L1_NORMAL, L2_FOCUS -> 1.0;
-            case L3_SILENT -> 0.7;  // 降低 30%
+            case L3_SILENT -> 0.7;
         };
     }
 }

@@ -1,43 +1,44 @@
 package com.vibe.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * 叙事情感枚举
  * 定义 TTS 播报时的情感基调
  */
 public enum NarrativeEmotion {
-    /**
-     * 温暖 - 适合日常通勤、家庭出行
-     */
-    WARM("温暖"),
+    WARM("warm", "温暖"),
+    ENERGETIC("energetic", "活力"),
+    ROMANTIC("romantic", "浪漫"),
+    ADVENTUROUS("adventurous", "冒险"),
+    CALM("calm", "平静");
 
-    /**
-     * 活力 - 适合愉快心情、郊游场景
-     */
-    ENERGETIC("活力"),
-
-    /**
-     * 浪漫 - 适合海滨、傍晚、情侣出行
-     */
-    ROMANTIC("浪漫"),
-
-    /**
-     * 冒险 - 适合山路、探索路线
-     */
-    ADVENTUROUS("冒险"),
-
-    /**
-     * 平静 - 适合疲劳、深夜、雨天
-     */
-    CALM("平静");
-
+    private final String value;
     private final String displayName;
 
-    NarrativeEmotion(String displayName) {
+    NarrativeEmotion(String value, String displayName) {
+        this.value = value;
         this.displayName = displayName;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
     }
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    @JsonCreator
+    public static NarrativeEmotion fromValue(String value) {
+        for (NarrativeEmotion emotion : values()) {
+            if (emotion.value.equalsIgnoreCase(value)) {
+                return emotion;
+            }
+        }
+        throw new IllegalArgumentException("Unknown NarrativeEmotion: " + value);
     }
 
     /**

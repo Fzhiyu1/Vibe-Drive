@@ -1,24 +1,44 @@
 package com.vibe.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * 天气状况枚举
  * 影响灯光氛围和音乐选择
  */
 public enum Weather {
-    SUNNY("晴天"),
-    CLOUDY("多云"),
-    RAINY("雨天"),
-    SNOWY("雪天"),
-    FOGGY("雾天");
+    SUNNY("sunny", "晴天"),
+    CLOUDY("cloudy", "多云"),
+    RAINY("rainy", "雨天"),
+    SNOWY("snowy", "雪天"),
+    FOGGY("foggy", "雾天");
 
+    private final String value;
     private final String displayName;
 
-    Weather(String displayName) {
+    Weather(String value, String displayName) {
+        this.value = value;
         this.displayName = displayName;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
     }
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    @JsonCreator
+    public static Weather fromValue(String value) {
+        for (Weather weather : values()) {
+            if (weather.value.equalsIgnoreCase(value)) {
+                return weather;
+            }
+        }
+        throw new IllegalArgumentException("Unknown Weather: " + value);
     }
 
     /**

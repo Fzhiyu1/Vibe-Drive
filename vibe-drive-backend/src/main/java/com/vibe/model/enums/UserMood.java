@@ -1,24 +1,44 @@
 package com.vibe.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * 用户情绪枚举
  * 作为氛围编排的核心输入之一
  */
 public enum UserMood {
-    HAPPY("愉快"),
-    CALM("平静"),
-    TIRED("疲劳"),
-    STRESSED("压力"),
-    EXCITED("兴奋");
+    HAPPY("happy", "愉快"),
+    CALM("calm", "平静"),
+    TIRED("tired", "疲劳"),
+    STRESSED("stressed", "压力"),
+    EXCITED("excited", "兴奋");
 
+    private final String value;
     private final String displayName;
 
-    UserMood(String displayName) {
+    UserMood(String value, String displayName) {
+        this.value = value;
         this.displayName = displayName;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
     }
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    @JsonCreator
+    public static UserMood fromValue(String value) {
+        for (UserMood mood : values()) {
+            if (mood.value.equalsIgnoreCase(value)) {
+                return mood;
+            }
+        }
+        throw new IllegalArgumentException("Unknown UserMood: " + value);
     }
 
     /**

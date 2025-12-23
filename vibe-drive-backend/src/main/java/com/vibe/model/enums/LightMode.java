@@ -1,38 +1,43 @@
 package com.vibe.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * 灯光模式枚举
  * 定义氛围灯的动态效果类型
  */
 public enum LightMode {
-    /**
-     * 静态模式 - 固定颜色和亮度
-     */
-    STATIC("静态"),
+    STATIC("static", "静态"),
+    BREATHING("breathing", "呼吸"),
+    GRADIENT("gradient", "渐变"),
+    PULSE("pulse", "脉冲");
 
-    /**
-     * 呼吸模式 - 亮度缓慢渐变（适合舒缓场景）
-     */
-    BREATHING("呼吸"),
-
-    /**
-     * 渐变模式 - 颜色缓慢过渡（适合风景路线）
-     */
-    GRADIENT("渐变"),
-
-    /**
-     * 脉冲模式 - 节奏性闪烁（适合动感音乐，仅 L1 模式）
-     */
-    PULSE("脉冲");
-
+    private final String value;
     private final String displayName;
 
-    LightMode(String displayName) {
+    LightMode(String value, String displayName) {
+        this.value = value;
         this.displayName = displayName;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
     }
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    @JsonCreator
+    public static LightMode fromValue(String value) {
+        for (LightMode mode : values()) {
+            if (mode.value.equalsIgnoreCase(value)) {
+                return mode;
+            }
+        }
+        throw new IllegalArgumentException("Unknown LightMode: " + value);
     }
 
     /**

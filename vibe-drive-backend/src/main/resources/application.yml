@@ -4,6 +4,18 @@ server:
 spring:
   application:
     name: vibe-drive
+  jackson:
+    # 禁用自动检测 getter 方法，避免计算方法被序列化
+    visibility:
+      getter: none
+      is-getter: none
+      field: any
+    # 序列化配置
+    serialization:
+      write-dates-as-timestamps: false
+    # 反序列化配置
+    deserialization:
+      fail-on-unknown-properties: false
 
 # LangChain4j Configuration
 langchain4j:

@@ -1,26 +1,36 @@
 package com.vibe.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * 时段枚举
  * 根据当前时间（小时）判断时段，影响氛围基调
  */
 public enum TimeOfDay {
-    DAWN("黎明", 5, 6),         // 5:00-6:59
-    MORNING("早晨", 7, 9),      // 7:00-9:59
-    NOON("正午", 10, 13),       // 10:00-13:59
-    AFTERNOON("下午", 14, 17),  // 14:00-17:59
-    EVENING("傍晚", 18, 19),    // 18:00-19:59
-    NIGHT("夜晚", 20, 22),      // 20:00-22:59
-    MIDNIGHT("深夜", 23, 4);    // 23:00-4:59
+    DAWN("dawn", "黎明", 5, 6),
+    MORNING("morning", "早晨", 7, 9),
+    NOON("noon", "正午", 10, 13),
+    AFTERNOON("afternoon", "下午", 14, 17),
+    EVENING("evening", "傍晚", 18, 19),
+    NIGHT("night", "夜晚", 20, 22),
+    MIDNIGHT("midnight", "深夜", 23, 4);
 
+    private final String value;
     private final String displayName;
     private final int startHour;
     private final int endHour;
 
-    TimeOfDay(String displayName, int startHour, int endHour) {
+    TimeOfDay(String value, String displayName, int startHour, int endHour) {
+        this.value = value;
         this.displayName = displayName;
         this.startHour = startHour;
         this.endHour = endHour;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
     }
 
     public String getDisplayName() {
@@ -35,11 +45,18 @@ public enum TimeOfDay {
         return endHour;
     }
 
+    @JsonCreator
+    public static TimeOfDay fromValue(String value) {
+        for (TimeOfDay tod : values()) {
+            if (tod.value.equalsIgnoreCase(value)) {
+                return tod;
+            }
+        }
+        throw new IllegalArgumentException("Unknown TimeOfDay: " + value);
+    }
+
     /**
      * 根据小时数判断时段
-     * @param hour 小时数��0-23）
-     * @return 对应的时段
-     * @throws IllegalArgumentException 如果小时数不在 0-23 范围内
      */
     public static TimeOfDay fromHour(int hour) {
         if (hour < 0 || hour > 23) {
@@ -48,19 +65,15 @@ public enum TimeOfDay {
 
         for (TimeOfDay timeOfDay : values()) {
             if (timeOfDay == MIDNIGHT) {
-                // 深夜跨越0点：23:00-4:59
                 if (hour >= timeOfDay.startHour || hour <= timeOfDay.endHour) {
                     return timeOfDay;
                 }
             } else {
-                // 其他时段：startHour <= hour <= endHour
                 if (hour >= timeOfDay.startHour && hour <= timeOfDay.endHour) {
                     return timeOfDay;
                 }
             }
         }
-
-        // 理论上不会到达这里
         throw new IllegalStateException("Unable to determine time of day for hour: " + hour);
     }
 

@@ -1,24 +1,44 @@
 package com.vibe.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * 路线类型枚举
  * 补充 GpsTag，描述当前驾驶路线的整体特征
  */
 public enum RouteType {
-    HIGHWAY("高速路线"),
-    URBAN("城市路线"),
-    MOUNTAIN("山路"),
-    COASTAL("海滨路线"),
-    TUNNEL("隧道路线");
+    HIGHWAY("highway", "高速路线"),
+    URBAN("urban", "城市路线"),
+    MOUNTAIN("mountain", "山路"),
+    COASTAL("coastal", "海滨路线"),
+    TUNNEL("tunnel", "隧道路线");
 
+    private final String value;
     private final String displayName;
 
-    RouteType(String displayName) {
+    RouteType(String value, String displayName) {
+        this.value = value;
         this.displayName = displayName;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
     }
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    @JsonCreator
+    public static RouteType fromValue(String value) {
+        for (RouteType type : values()) {
+            if (type.value.equalsIgnoreCase(value)) {
+                return type;
+            }
+        }
+        throw new IllegalArgumentException("Unknown RouteType: " + value);
     }
 
     /**
