@@ -19,7 +19,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <langchain4j.version>1.0.0-alpha1</langchain4j.version>
+        <langchain4j.version>1.9.1</langchain4j.version>
     </properties>
 
     <dependencies>
@@ -46,11 +46,6 @@
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-open-ai</artifactId>
-            <version>${langchain4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-spring-boot-starter</artifactId>
             <version>${langchain4j.version}</version>
         </dependency>
 

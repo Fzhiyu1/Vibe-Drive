@@ -54,7 +54,7 @@ public record AmbiencePlan(
     /**
      * 根据安全模式过滤输出
      * - L3_SILENT: 灯光设为 null，叙事音量降低 30%
-     * - L2_FOCUS: 灯光设为 null（禁用视觉效果）
+     * - L2_FOCUS: 灯光强制静态模式（禁用动态效果）
      * - L1_NORMAL: 返回原方案
      */
     public AmbiencePlan applyingSafetyFilter() {
@@ -71,7 +71,7 @@ public record AmbiencePlan(
             case L2_FOCUS -> new AmbiencePlan(
                 id,
                 music,
-                null,  // 禁用灯光
+                light != null ? light.forFocusMode() : null,  // 禁用动态效果
                 narrative,
                 safetyMode,
                 reasoning,
@@ -107,6 +107,21 @@ public record AmbiencePlan(
      */
     public boolean isComplete() {
         return hasMusic() && hasLight() && hasNarrative();
+    }
+
+    /**
+     * 创建静默模式方案（L3_SILENT 时使用）
+     */
+    public static AmbiencePlan silent() {
+        return new AmbiencePlan(
+            null,
+            null,
+            null,
+            null,
+            SafetyMode.L3_SILENT,
+            "高速行驶中，静默模式，不主动推荐",
+            null
+        );
     }
 
     /**
