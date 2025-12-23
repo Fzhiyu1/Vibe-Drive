@@ -58,11 +58,11 @@ docs/plan/
 - 遵循 Spring Boot 3.x 最佳实践
 - 包结构：`com.vibe.{module}`
 
-### 前端 (React)
+### 前端 (Vue 3)
 
 - 使用 TypeScript
-- 组件使用函数式组件 + Hooks
-- 状态管理使用 Zustand 或 React Context
+- 组件使用 Composition API + `<script setup>`
+- 状态管理使用 Pinia
 
 ## Git 提交规范
 

@@ -34,9 +34,10 @@ Vibe Drive 是一个通用智能体（General-purpose Agent）架构的车载空
 
 ### 前端
 
-- **React 19** + **TypeScript**
-- **Three.js** / **React Three Fiber** - 3D 可视化
+- **Vue 3** + **TypeScript**
+- **Three.js** / **TresJS** - 3D 可视化
 - **Vite** - 构建工具
+- **Pinia** - 状态管理
 
 ### AI 服务
 
@@ -86,10 +87,10 @@ npm run dev
 |------|------|------|
 | 阶段 1 | 项目初始化 | ✅ 已完成 |
 | 阶段 2 | 设计文档 | ✅ 已完成 |
-| 阶段 3 | 数据模型实现 | ⏳ 待开始 |
-| 阶段 4 | Tool 层实现 | ⏳ 待开始 |
-| 阶段 5 | Agent 编排 | ⏳ 待开始 |
-| 阶段 6 | API 与 Mock | ⏳ 待开始 |
+| 阶段 3 | 数据模型实现 | ✅ 已完成 |
+| 阶段 4 | Tool 层实现 | ✅ 已完成 |
+| 阶段 5 | Agent 编排 | ✅ 已完成 |
+| 阶段 6 | API 与 Mock | ✅ 已完成 |
 | 阶段 7 | 前端开发 | ⏳ 待开始 |
 
 ## 文档
