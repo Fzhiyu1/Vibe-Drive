@@ -862,8 +862,17 @@ public sealed interface MergeResult {
 
 ```java
 public record AnalyzeRequest(
+    @Description("会话 ID（对应 LangChain4j @MemoryId）")
+    String sessionId,
+
+    @Description("环境数据")
     Environment environment,
-    Map<String, Object> userPreferences
+
+    @Description("用户偏好（可选）")
+    Map<String, Object> preferences,
+
+    @Description("是否异步处理（默认 false）")
+    boolean async
 ) {}
 ```
 
@@ -872,10 +881,18 @@ public record AnalyzeRequest(
 **重要变更**：添加了 `tokenUsage` 和 `toolExecutions` 字段，用于成本监控和性能分析。
 
 ```java
-@Description("分析响应，包含氛围方案和执行元数据")
+public enum AnalyzeAction {
+    APPLY,
+    NO_ACTION
+}
+
+@Description("分析响应，包含动作决策、氛围方案和执行元数据")
 public record AnalyzeResponse(
-    @Description("请求是否成功")
-    boolean success,
+    @Description("动作：APPLY（应用新方案）/NO_ACTION（本次不更新）")
+    AnalyzeAction action,
+
+    @Description("可选提示信息（通常在 NO_ACTION 时返回原因）")
+    String message,
 
     @Description("生成的氛围方案")
     AmbiencePlan plan,
@@ -886,19 +903,18 @@ public record AnalyzeResponse(
     @Description("工具执行详情，用于性能分析")
     List<ToolExecutionInfo> toolExecutions,
 
-    @Description("错误信息，仅在失败时存在")
-    String error,
-
     @Description("处理耗时（毫秒）")
     long processingTimeMs
 ) {
-    public static AnalyzeResponse success(AmbiencePlan plan, TokenUsageInfo tokenUsage,
-                                          List<ToolExecutionInfo> toolExecutions, long timeMs) {
-        return new AnalyzeResponse(true, plan, tokenUsage, toolExecutions, null, timeMs);
+    public static AnalyzeResponse applied(AmbiencePlan plan,
+                                          TokenUsageInfo tokenUsage,
+                                          List<ToolExecutionInfo> toolExecutions,
+                                          long timeMs) {
+        return new AnalyzeResponse(AnalyzeAction.APPLY, null, plan, tokenUsage, toolExecutions, timeMs);
     }
 
-    public static AnalyzeResponse error(String error) {
-        return new AnalyzeResponse(false, null, null, null, error, 0);
+    public static AnalyzeResponse noAction(String message) {
+        return new AnalyzeResponse(AnalyzeAction.NO_ACTION, message, null, null, List.of(), 0);
     }
 }
 ```
@@ -1004,7 +1020,9 @@ public interface VibeAgent {
         {{environment}}
         """)
     Result<AmbiencePlan> analyzeEnvironment(
-        @V("environment") String environmentJson
+        @MemoryId String sessionId,
+        @V("environment") String environmentJson,
+        @V("preferences") String preferencesJson
     );  // ✅ 返回 Result<T> 包含元数据
 }
 ```
@@ -1016,13 +1034,16 @@ public interface VibeAgent {
 public class VibeService {
 
     private final VibeAgent vibeAgent;
+    private final ObjectMapper objectMapper;
 
-    public AnalyzeResponse analyze(Environment environment) {
+    public AnalyzeResponse analyze(String sessionId, Environment environment, Map<String, Object> preferences) {
         long startTime = System.currentTimeMillis();
 
         // 调用 Agent，获取 Result
         Result<AmbiencePlan> result = vibeAgent.analyzeEnvironment(
-            objectMapper.writeValueAsString(environment)
+            sessionId,
+            toJson(environment),
+            preferences == null ? null : toJson(preferences)
         );
 
         // 提取各项元数据
@@ -1045,12 +1066,20 @@ public class VibeService {
 
         // 转换为响应模型
         long processingTime = System.currentTimeMillis() - startTime;
-        return AnalyzeResponse.success(
+        return AnalyzeResponse.applied(
             plan,
             TokenUsageInfo.from(tokenUsage),
             toolExecutions.stream().map(ToolExecutionInfo::from).toList(),
             processingTime
         );
+    }
+
+    private String toJson(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
 ```
@@ -1118,4 +1147,301 @@ public class AiServiceConfig {
 │  │ └───────────────┘ └───────────┘ └─────────┘ │   │
 │  └─────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 12. SSE 流式事件模型
+
+本章定义 SSE (Server-Sent Events) 流式输出相关的数据模型，用于支持 LangChain4j TokenStream 的实时推送。
+
+### 12.1 流式分析事件
+
+#### TokenEvent - Token 输出事件
+
+```java
+@Description("LLM 输出的 token 事件")
+public record TokenEvent(
+    @Description("token 内容")
+    String content,
+
+    @Description("事件时间戳")
+    Instant timestamp
+) {
+    public TokenEvent(String content) {
+        this(content, Instant.now());
+    }
+}
+```
+
+#### ToolStartEvent - Tool 开始执行事件
+
+```java
+@Description("Tool 开始执行事件")
+public record ToolStartEvent(
+    @Description("工具名称")
+    String toolName,
+
+    @Description("执行参数（JSON 格式）")
+    String arguments,
+
+    @Description("事件时间戳")
+    Instant timestamp
+) {
+    public ToolStartEvent(String toolName, String arguments) {
+        this(toolName, arguments, Instant.now());
+    }
+}
+```
+
+#### ToolEndEvent - Tool 执行完成事件
+
+```java
+@Description("Tool 执行完成事件")
+public record ToolEndEvent(
+    @Description("工具名称")
+    String toolName,
+
+    @Description("执行耗时（毫秒）")
+    long durationMs,
+
+    @Description("是否执行成功")
+    boolean success,
+
+    @Description("错误信息，仅在失败时存在")
+    String error,
+
+    @Description("事件时间戳")
+    Instant timestamp
+) {
+    public ToolEndEvent(String toolName, long durationMs, boolean success) {
+        this(toolName, durationMs, success, null, Instant.now());
+    }
+
+    public static ToolEndEvent error(String toolName, String error) {
+        return new ToolEndEvent(toolName, 0, false, error, Instant.now());
+    }
+}
+```
+
+#### complete - 流式完成事件
+
+`complete` 事件的 data 直接复用 `AnalyzeResponse`（见 10.2，与 `POST /vibe/analyze` 的 `data` 一致），避免维护两份 DTO。
+
+#### ErrorEvent - 错误事件
+
+```java
+@Description("错误事件")
+public record ErrorEvent(
+    @Description("错误码")
+    String code,
+
+    @Description("错误信息")
+    String message,
+
+    @Description("事件时间戳")
+    Instant timestamp
+) {
+    public ErrorEvent(String code, String message) {
+        this(code, message, Instant.now());
+    }
+}
+```
+
+### 12.2 实时推送事件
+
+#### AmbienceChangedEvent - 氛围变化事件
+
+```java
+@Description("氛围方案变化事件")
+public record AmbienceChangedEvent(
+    @Description("方案 ID")
+    String planId,
+
+    @Description("音乐推荐")
+    MusicRecommendation music,
+
+    @Description("灯光设置")
+    LightSetting light,
+
+    @Description("叙事文本")
+    Narrative narrative,
+
+    @Description("当前安全模式")
+    SafetyMode safetyMode,
+
+    @Description("触发原因：environment_change/user_request/scheduled")
+    String trigger,
+
+    @Description("事件时间戳")
+    Instant timestamp
+) {
+    public AmbienceChangedEvent(AmbiencePlan plan, String trigger) {
+        this(plan.id(), plan.music(), plan.light(), plan.narrative(),
+             plan.safetyMode(), trigger, Instant.now());
+    }
+}
+```
+
+#### SafetyModeChangedEvent - 安全模式变化事件
+
+```java
+@Description("安全模式变化事件")
+public record SafetyModeChangedEvent(
+    @Description("之前的安全模式")
+    SafetyMode previousMode,
+
+    @Description("当前安全模式")
+    SafetyMode currentMode,
+
+    @Description("当前车速")
+    double speed,
+
+    @Description("事件时间戳")
+    Instant timestamp
+) {
+    public SafetyModeChangedEvent(SafetyMode previousMode, SafetyMode currentMode, double speed) {
+        this(previousMode, currentMode, speed, Instant.now());
+    }
+}
+```
+
+#### AgentStatusChangedEvent - Agent 状态变化事件
+
+```java
+@Description("Agent 状态变化事件")
+public record AgentStatusChangedEvent(
+    @Description("Agent 是否运行中")
+    boolean running,
+
+    @Description("状态变化事件：started/stopped/error")
+    String event,
+
+    @Description("错误信息，仅在 event=error 时存在")
+    String error,
+
+    @Description("事件时间戳")
+    Instant timestamp
+) {
+    public static AgentStatusChangedEvent started() {
+        return new AgentStatusChangedEvent(true, "started", null, Instant.now());
+    }
+
+    public static AgentStatusChangedEvent stopped() {
+        return new AgentStatusChangedEvent(false, "stopped", null, Instant.now());
+    }
+
+    public static AgentStatusChangedEvent error(String error) {
+        return new AgentStatusChangedEvent(false, "error", error, Instant.now());
+    }
+}
+```
+
+#### EnvironmentUpdateEvent - 环境数据更新事件
+
+```java
+@Description("环境数据更新事件（通常来自模拟器或车端采集）")
+public record EnvironmentUpdateEvent(
+    @Description("位置标签")
+    GpsTag gpsTag,
+
+    @Description("天气")
+    Weather weather,
+
+    @Description("车速（km/h）")
+    double speed,
+
+    @Description("事件时间戳")
+    Instant timestamp
+) {
+    public EnvironmentUpdateEvent(GpsTag gpsTag, Weather weather, double speed) {
+        this(gpsTag, weather, speed, Instant.now());
+    }
+}
+```
+
+#### HeartbeatEvent - 心跳事件
+
+```java
+@Description("心跳事件，用于保持 SSE 连接活跃")
+public record HeartbeatEvent(
+    @Description("事件时间戳")
+    Instant timestamp
+) {
+    public HeartbeatEvent() {
+        this(Instant.now());
+    }
+}
+```
+
+### 12.3 SSE 事件类型汇总
+
+| 事件类型 | Record 类 | 用途 |
+|----------|-----------|------|
+| `token` | `TokenEvent` | LLM 输出的 token（调试事件） |
+| `tool_start` | `ToolStartEvent` | Tool 开始执行（调试事件） |
+| `tool_end` | `ToolEndEvent` | Tool 执行完成（调试事件） |
+| `complete` | `AnalyzeResponse` | 流式分析完成（最终结果） |
+| `error` | `ErrorEvent` | 发生错误 |
+| `ambience_changed` | `AmbienceChangedEvent` | 氛围方案变化 |
+| `safety_mode_changed` | `SafetyModeChangedEvent` | 安全模式变化 |
+| `agent_status_changed` | `AgentStatusChangedEvent` | Agent 状态变化 |
+| `environment_update` | `EnvironmentUpdateEvent` | 环境数据更新 |
+| `heartbeat` | `HeartbeatEvent` | 心跳保活 |
+
+### 12.4 SSE 事件 JSON 示例
+
+**token 事件**
+```json
+{"content": "正在分析深夜雨天场景", "timestamp": "2025-12-23T23:30:00Z"}
+```
+
+**tool_start 事件**
+```json
+{"toolName": "recommendMusic", "arguments": "{\"mood\":\"calm\"}", "timestamp": "2025-12-23T23:30:00Z"}
+```
+
+**tool_end 事件**
+```json
+{"toolName": "recommendMusic", "durationMs": 120, "success": true, "error": null, "timestamp": "2025-12-23T23:30:00Z"}
+```
+
+**complete 事件**
+```json
+{
+  "action": "APPLY",
+  "message": null,
+  "plan": { "id": "plan_001", "music": {...}, "light": {...}, "narrative": {...} },
+  "tokenUsage": { "inputTokenCount": 1234, "outputTokenCount": 567, "totalTokenCount": 1801 },
+  "toolExecutions": [...],
+  "processingTimeMs": 1850
+}
+```
+
+**ambience_changed 事件**
+```json
+{
+  "planId": "plan_001",
+  "music": {...},
+  "light": {...},
+  "narrative": {...},
+  "safetyMode": "L1_NORMAL",
+  "trigger": "environment_change",
+  "timestamp": "2025-12-23T23:30:00Z"
+}
+```
+
+**environment_update 事件**
+```json
+{
+  "gpsTag": "highway",
+  "weather": "rainy",
+  "speed": 80,
+  "timestamp": "2025-12-23T23:30:00Z"
+}
+```
+
+**heartbeat 事件**
+```json
+{"timestamp": "2025-12-23T23:30:00Z"}
 ```

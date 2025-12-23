@@ -126,13 +126,54 @@ LLM 推理（ReAct 模式）
 
 ### 3.1 通信原则
 
-| 方向 | 方式 | 说明 |
-|------|------|------|
-| 用户 → 主智能体 | 同步阻塞 | 用户体验优先，立即响应 |
-| 主智能体 → Vibe Agent | 异步命令 | 不阻塞用户交互 |
-| Vibe Agent → 主智能体 | 共享状态 + 通知 | 完全解耦 |
+| 方向 | 方式 | 协议 | 说明 |
+|------|------|------|------|
+| 用户 → 主智能体 | 同步阻塞 | REST | 用户体验优先，立即响应 |
+| 主智能体 → Vibe Agent | 异步命令 | REST | 不阻塞用户交互 |
+| Vibe Agent → 前端 | 流式推送 | **SSE** | LLM 输出实时展示（TokenStream） |
+| 系统 → 前端 | 事件推送 | **SSE** | 状态变化实时通知 |
 
-### 3.2 会话隔离与异步通知（推荐：@MemoryId + ChatMemoryProvider）
+### 3.2 通讯协议选择：SSE vs WebSocket
+
+**为何选择 SSE 而非 WebSocket**：
+
+| 考量因素 | SSE | WebSocket | 选择理由 |
+|----------|-----|-----------|----------|
+| **通信模式** | 单向（服务端→客户端） | 双向 | Vibe Drive 只需服务端推送 |
+| **LangChain4j 适配** | TokenStream 天然适配 | 需要手动转换 | 减少代码量 |
+| **HTTP/2 兼容** | 原生支持多路复用 | 需要额外处理 | 更好的性能 |
+| **重连机制** | 浏览器自动重连 | 需手动实现 | 更可靠 |
+| **实现复杂度** | 低（基于 HTTP） | 高（独立协议） | 更易维护 |
+| **防火墙穿透** | 无障碍（HTTP） | 可能被阻止 | 更好的兼容性 |
+
+**通信架构图**：
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           Vibe Drive 通信架构                            │
+│                                                                         │
+│  ┌─────────────┐                              ┌─────────────────────┐   │
+│  │   前端 UI   │                              │    Vibe Agent       │   │
+│  │             │                              │                     │   │
+│  │  ┌───────┐  │  POST /api/vibe/analyze      │  ┌───────────────┐  │   │
+│  │  │ 提交  │──┼──────────────────────────────┼─→│ Result<T>     │  │   │
+│  │  │ 环境  │  │  (同步 REST)                 │  │ 非流式响应    │  │   │
+│  │  └───────┘  │                              │  └───────────────┘  │   │
+│  │             │                              │                     │   │
+│  │  ┌───────┐  │  GET /api/vibe/analyze/stream│  ┌───────────────┐  │   │
+│  │  │ 流式  │←─┼──────────────────────────────┼──│ TokenStream   │  │   │
+│  │  │ 展示  │  │  (SSE 流式推送)              │  │ 流式输出      │  │   │
+│  │  └───────┘  │                              │  └───────────────┘  │   │
+│  │             │                              └─────────────────────┘   │
+│  │  ┌───────┐  │  GET /api/vibe/events                                  │
+│  │  │ 状态  │←─┼────────────────────────────────────────────────────────│
+│  │  │ 监听  │  │  (SSE 事件订阅)                                        │
+│  │  └───────┘  │                                                        │
+│  └─────────────┘                                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 3.3 会话隔离与异步通知（推荐：@MemoryId + ChatMemoryProvider）
 
 LangChain4j 已内置会话隔离与窗口记忆能力，Vibe Drive 不再自研 Fork-Merge：
 
@@ -481,6 +522,78 @@ public interface AgentBridge {
 }
 ```
 
+### 6.5 SSE 事件发布器
+
+用于向订阅的客户端推送实时事件，替代 WebSocket 实现服务端推送。
+
+```java
+/**
+ * SSE 事件发布器接口
+ * 用于向订阅的客户端推送实时事件
+ */
+public interface SseEventPublisher<T> {
+
+    /**
+     * 订阅事件流
+     * @param sessionId 会话 ID
+     * @return 事件流（Reactor Flux）
+     */
+    Flux<T> subscribe(String sessionId);
+
+    /**
+     * 发布事件到指定会话
+     * @param sessionId 会话 ID
+     * @param event 事件数据
+     */
+    void publish(String sessionId, T event);
+
+    /**
+     * 广播事件到所有订阅者
+     * @param event 事件数据
+     */
+    void broadcast(T event);
+}
+
+/**
+ * 氛围变化事件发布器实现
+ */
+@Component
+public class AmbienceEventPublisher implements SseEventPublisher<AmbienceChangedEvent> {
+
+    private final Map<String, Sinks.Many<AmbienceChangedEvent>> sinks = new ConcurrentHashMap<>();
+
+    @Override
+    public Flux<AmbienceChangedEvent> subscribe(String sessionId) {
+        return sinks.computeIfAbsent(sessionId,
+            id -> Sinks.many().multicast().onBackpressureBuffer()
+        ).asFlux();
+    }
+
+    @Override
+    public void publish(String sessionId, AmbienceChangedEvent event) {
+        Sinks.Many<AmbienceChangedEvent> sink = sinks.get(sessionId);
+        if (sink != null) {
+            sink.tryEmitNext(event);
+        }
+    }
+
+    @Override
+    public void broadcast(AmbienceChangedEvent event) {
+        sinks.values().forEach(sink -> sink.tryEmitNext(event));
+    }
+
+    /**
+     * 清理断开连接的订阅者
+     */
+    public void cleanup(String sessionId) {
+        Sinks.Many<AmbienceChangedEvent> sink = sinks.remove(sessionId);
+        if (sink != null) {
+            sink.tryEmitComplete();
+        }
+    }
+}
+```
+
 ---
 
 ## 7. 数据流图
@@ -534,14 +647,17 @@ public interface AgentBridge {
 
 | 组件 | 技术选型 | 说明 |
 |------|----------|------|
-| 后端框架 | Spring Boot 3.x | Java 21 |
-| AI 框架 | LangChain4j 1.x | AI Services + Tool Calling |
+| 后端框架 | Spring Boot 3.x + **WebFlux** | Java 21，支持响应式 SSE |
+| AI 框架 | LangChain4j 1.x | AI Services + Tool Calling + **TokenStream** |
 | 会话管理 | ✅ **LangChain4j ChatMemoryProvider** | 使用 `@MemoryId` 自动隔离会话 |
 | ~~会话管理~~ | ~~自研 Fork-Merge~~ | ~~已废弃，使用内置方案~~ |
 | 结构化输出 | ✅ **@Description 注解** | 自动生成 JSON Schema |
 | Prompt 管理 | ✅ **@SystemMessage(fromResource)** | 从资源文件加载 |
-| 执行元数据 | ✅ **Result<T>** | Token 使用量 + Tool 执行详情 |
-| 异步处理 | Virtual Threads | Java 21 特性 |
+| 执行元数据 | ✅ **Result<T>** | 非流式：Token 使用量 + Tool 执行详情 |
+| 流式输出 | ✅ **TokenStream + SSE** | 流式：逐 token 推送 + 事件通知 |
+| 实时推送 | ✅ **SSE (Server-Sent Events)** | 替代 WebSocket，更简单可靠 |
+| ~~实时推送~~ | ~~WebSocket~~ | ~~已废弃，使用 SSE~~ |
+| 异步处理 | Virtual Threads + Reactor | Java 21 特性 + Spring WebFlux |
 | 前端框架 | React + TypeScript | - |
 | 3D 渲染 | Three.js | 氛围灯动效 |
 | API 文档 | SpringDoc OpenAPI | Swagger UI |
