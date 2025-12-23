@@ -503,7 +503,7 @@ src/
 │
 ├── hooks/
 │   ├── useVibe.ts               # Vibe API 调用
-│   ├── useWebSocket.ts          # WebSocket 连接
+│   ├── useSseEvents.ts          # SSE 事件订阅
 │   ├── useAmbience.ts           # 氛围状态管理
 │   └── useEnvironment.ts        # 环境数据管理
 │
@@ -513,7 +513,7 @@ src/
 │
 ├── services/
 │   ├── vibeApi.ts               # API 服务
-│   └── websocket.ts             # WebSocket 服务
+│   └── sse.ts                   # SSE 服务
 │
 ├── styles/
 │   ├── global.css               # 全局样式

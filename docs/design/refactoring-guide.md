@@ -331,13 +331,18 @@ public VibeAgent vibeAgent(ChatLanguageModel model, ...) {
 // 使用
 @Service
 public class VibeService {
-    public AnalyzeResponse analyze(Environment env) {
+    public AnalyzeResponse analyze(String sessionId, Environment env) {
+        long startTime = System.currentTimeMillis();
+
         Result<AmbiencePlan> result = vibeAgent.analyzeEnvironment(
-            "user-123",
-            objectMapper.writeValueAsString(env)
+            sessionId,
+            objectMapper.writeValueAsString(env),
+            null
         );
 
-        return AnalyzeResponse.success(
+        long processingTime = System.currentTimeMillis() - startTime;
+
+        return AnalyzeResponse.applied(
             result.content(),              // AmbiencePlan
             TokenUsageInfo.from(result.tokenUsage()),
             result.toolExecutions().stream()
@@ -805,24 +810,30 @@ AmbiencePlan plan2 = vibeAgent.analyze("user-456", env);  // 会话2（隔离）
    }
    ```
 
-4. 更新 Service 层使用方式：
-   ```java
-   @Service
-   public class VibeService {
-       public AnalyzeResponse analyze(Environment env) {
-           Result<AmbiencePlan> result = vibeAgent.analyzeEnvironment(
-               "session-" + env.userId(),
-               objectMapper.writeValueAsString(env)
-           );
+	4. 更新 Service 层使用方式：
+	   ```java
+	   @Service
+	   public class VibeService {
+	       public AnalyzeResponse analyze(String sessionId, Environment env) {
+	           long startTime = System.currentTimeMillis();
 
-           return AnalyzeResponse.success(
-               result.content(),
-               TokenUsageInfo.from(result.tokenUsage()),
-               ...
-           );
-       }
-   }
-   ```
+	           Result<AmbiencePlan> result = vibeAgent.analyzeEnvironment(
+	               sessionId,
+	               objectMapper.writeValueAsString(env),
+	               null
+	           );
+
+	           long processingTime = System.currentTimeMillis() - startTime;
+
+	           return AnalyzeResponse.applied(
+	               result.content(),
+	               TokenUsageInfo.from(result.tokenUsage()),
+	               result.toolExecutions().stream().map(ToolExecutionInfo::from).toList(),
+	               processingTime
+	           );
+	       }
+	   }
+	   ```
 
 5. 删除旧的实现：
    - `VibeAgentImpl.java`
@@ -851,17 +862,19 @@ AmbiencePlan plan2 = vibeAgent.analyze("user-456", env);  // 会话2（隔离）
    public record ToolExecutionInfo(...) {}
    ```
 
-2. 增强 API 响应：
-   ```java
-   public record AnalyzeResponse(
-       boolean success,
-       AmbiencePlan plan,
-       TokenUsageInfo tokenUsage,      // 新增
-       List<ToolExecutionInfo> toolExecutions,  // 新增
-       String error,
-       long processingTimeMs
-   ) {}
-   ```
+	2. 增强 API 响应：
+	   ```java
+	   public enum AnalyzeAction { APPLY, NO_ACTION }
+
+	   public record AnalyzeResponse(
+	       AnalyzeAction action,
+	       String message,
+	       AmbiencePlan plan,
+	       TokenUsageInfo tokenUsage,      // 新增
+	       List<ToolExecutionInfo> toolExecutions,  // 新增
+	       long processingTimeMs
+	   ) {}
+	   ```
 
 3. 从 Result<T> 提取元数据：
    ```java
