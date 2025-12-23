@@ -202,62 +202,15 @@ public class MusicRecommendationLogic {
 }
 ```
 
-### 3.5 Mock 实现（新设计）
+### 3.5 ~~Mock 实现~~（已简化）
 
-```java
-import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.agent.tool.P;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
-
-@Component
-@Profile("mock")
-public class MockMusicTool {
-
-    private static final List<Song> MOCK_SONGS = List.of(
-        new Song("1", "夜空中最亮的星", "逃跑计划", "世界", 252, 76, "rock", null),
-        new Song("2", "平凡之路", "朴树", "猎户星座", 295, 82, "folk", null),
-        new Song("3", "晴天", "周杰伦", "叶惠美", 269, 120, "pop", null),
-        new Song("4", "Take Five", "Dave Brubeck", "Time Out", 324, 88, "jazz", null),
-        new Song("5", "Clair de Lune", "Debussy", "Suite bergamasque", 300, 60, "classical", null)
-    );
-
-    @Tool("""
-        根据用户情绪、时段和乘客数量推荐合适的音乐。
-        - 独自驾驶时推荐个人化音乐
-        - 多人乘坐时推荐大众化、欢快的音乐
-        - 疲劳时推荐舒缓音乐
-        - 深夜时避免过于激烈的音乐
-        """)
-    public MusicRecommendation recommendMusic(
-        @P("目标情绪: happy/calm/tired/stressed/excited") String mood,
-        @P("时段: dawn/morning/noon/afternoon/evening/night/midnight") String timeOfDay,
-        @P("乘客数量: 1-7") int passengerCount,
-        @P("偏好流派，可选: pop/rock/jazz/classical") String genre
-    ) {
-        // 简单的 Mock 逻辑：根据情绪筛选
-        List<Song> filtered = MOCK_SONGS.stream()
-            .filter(s -> matchesMood(s, mood))
-            .limit(5)
-            .toList();
-
-        return new MusicRecommendation(
-            filtered.isEmpty() ? MOCK_SONGS.subList(0, 3) : filtered,
-            mood,
-            genre != null ? genre : "mixed",
-            new BpmRange(60, 120)
-        );
-    }
-
-    private boolean matchesMood(Song song, String mood) {
-        return switch (mood) {
-            case "calm", "tired" -> song.bpm() < 90;
-            case "happy", "excited" -> song.bpm() > 100;
-            default -> true;
-        };
-    }
-}
-```
+> **设计变更**：采用简化设计，不创建单独的 Mock Tool 类。
+>
+> - Tool 层仅负责参数转换和委托调用
+> - Service 层包含完整业务逻辑（包括 Mock 数据加载）
+> - 曲库数据通过 `mock-songs.json` 文件提供
+>
+> 如需切换真实数据源，只需替换 Service 实现或使用 `@Profile` 切换 Service Bean。
 
 ---
 
@@ -373,44 +326,13 @@ public class LightPresets {
 }
 ```
 
-### 4.5 Mock 实现（新设计）
+### 4.5 ~~Mock 实现~~（已简化）
 
-```java
-import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.agent.tool.P;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
-
-@Component
-@Profile("mock")
-public class MockLightTool {
-
-    @Tool("""
-        根据情绪、时段和天气设置车内氛围灯。
-        - 深夜/疲劳时使用暖色调低亮度
-        - 晴天/开心时可使用明亮活力的颜色
-        - 雨天/压力时使用柔和舒缓的颜色
-        - 高速行驶时（L2/L3模式）禁用动态效果
-        """)
-    public LightSetting setLight(
-        @P("目标情绪: happy/calm/tired/stressed/excited") String mood,
-        @P("时段: dawn/morning/noon/afternoon/evening/night/midnight") String timeOfDay,
-        @P("天气: sunny/cloudy/rainy/snowy/foggy") String weather
-    ) {
-        LightColor color = LightPresets.MOOD_COLORS.getOrDefault(mood, LightColor.warmWhite());
-        int brightness = LightPresets.TIME_BRIGHTNESS.getOrDefault(timeOfDay, 50);
-        LightMode mode = LightPresets.WEATHER_MODE.getOrDefault(weather, LightMode.STATIC);
-
-        return new LightSetting(
-            color,
-            brightness,
-            mode,
-            1500,
-            List.of()  // 简化：不分区
-        );
-    }
-}
-```
+> **设计变更**：采用简化设计，不创建单独的 Mock Tool 类。
+>
+> - LightTool 委托 LightService 处理业务逻辑
+> - LightPresets 提供预设常量
+> - 如需切换真实硬件接口，只需替换 LightService 实现
 
 ---
 
@@ -431,17 +353,18 @@ import org.springframework.stereotype.Component;
 public class NarrativeTool {
 
     private final NarrativeService narrativeService;
-    private final ObjectMapper objectMapper;
 
-    public NarrativeTool(NarrativeService narrativeService, ObjectMapper objectMapper) {
+    public NarrativeTool(NarrativeService narrativeService) {
         this.narrativeService = narrativeService;
-        this.objectMapper = objectMapper;
     }
 
     /**
      * 生成叙事文本
      *
-     * @param environmentJson 当前环境 JSON
+     * @param timeOfDay   时段
+     * @param weather     天气
+     * @param gpsTag      位置标签
+     * @param userMood    用户情绪
      * @param currentSong 当前播放的歌曲（可选）
      * @param theme       叙事主题（可选）
      * @return 叙事文本
@@ -454,12 +377,14 @@ public class NarrativeTool {
         - 语气应符合当前氛围（深夜轻柔，早晨活力）
         """)
     public Narrative generateNarrative(
-        @P("当前环境的JSON字符串") String environmentJson,
+        @P("时段: dawn/morning/noon/afternoon/evening/night/midnight") String timeOfDay,
+        @P("天气: sunny/cloudy/rainy/snowy/foggy") String weather,
+        @P("位置标签: highway/urban/suburban/rural/coastal/mountain") String gpsTag,
+        @P("用户情绪: happy/calm/tired/stressed/excited") String userMood,
         @P("当前歌曲名称，可选") String currentSong,
         @P("叙事主题，可选: comfort/energy/romance/adventure") String theme
-    ) throws JsonProcessingException {
-        Environment env = objectMapper.readValue(environmentJson, Environment.class);
-        return narrativeService.generate(env, currentSong, theme);
+    ) {
+        return narrativeService.generate(timeOfDay, weather, gpsTag, userMood, currentSong, theme);
     }
 }
 ```
@@ -468,7 +393,10 @@ public class NarrativeTool {
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| environmentJson | String | 是 | 当前环境的 JSON 字符串 |
+| timeOfDay | String | 是 | 时段：dawn/morning/noon/afternoon/evening/night/midnight |
+| weather | String | 是 | 天气：sunny/cloudy/rainy/snowy/foggy |
+| gpsTag | String | 是 | 位置标签：highway/urban/suburban/rural/coastal/mountain |
+| userMood | String | 是 | 用户情绪：happy/calm/tired/stressed/excited |
 | currentSong | String | 否 | 当前播放的歌曲名称 |
 | theme | String | 否 | 叙事主题：comfort/energy/romance/adventure |
 
@@ -513,21 +441,24 @@ public class NarrativeTemplates {
     );
 
     // 通用模板
-    public static String generate(Environment env, String song) {
-        String template = selectTemplate(env);
+    public static String generate(String timeOfDay, String weather, String gpsTag, String song) {
+        String template = selectTemplate(timeOfDay, weather, gpsTag);
         if (song != null && !song.isBlank()) {
             template = template.replace("这首歌", "《" + song + "》");
         }
         return template;
     }
 
-    private static String selectTemplate(Environment env) {
+    private static String selectTemplate(String timeOfDay, String weather, String gpsTag) {
         // 根据环境选择模板
-        if (env.timeOfDay() == TimeOfDay.MIDNIGHT && env.weather() == Weather.RAINY) {
+        if ("midnight".equals(timeOfDay) && "rainy".equals(weather)) {
             return randomFrom(MIDNIGHT_RAIN);
         }
-        if (env.timeOfDay() == TimeOfDay.MORNING && env.weather() == Weather.SUNNY) {
+        if ("morning".equals(timeOfDay) && "sunny".equals(weather)) {
             return randomFrom(MORNING_SUNNY);
+        }
+        if ("evening".equals(timeOfDay) && "coastal".equals(gpsTag)) {
+            return randomFrom(EVENING_COASTAL);
         }
         // ... 更多匹配
         return "享受旅途，让音乐陪伴你。";
@@ -535,67 +466,13 @@ public class NarrativeTemplates {
 }
 ```
 
-### 5.5 Mock 实现（新设计）
+### 5.5 ~~Mock 实现~~（已简化）
 
-```java
-import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.agent.tool.P;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
-
-@Component
-@Profile("mock")
-public class MockNarrativeTool {
-
-    private final ObjectMapper objectMapper;
-
-    public MockNarrativeTool(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
-
-    @Tool("""
-        生成 TTS 播报文本，将窗外风景与音乐进行"时空编织"。
-        - 文本应简短温馨，不超过 50 字
-        - 结合当前环境（天气、时段、位置）
-        - 如有正在播放的歌曲，可以关联歌曲意境
-        - 语气应符合当前氛围（深夜轻柔，早晨活力）
-        """)
-    public Narrative generateNarrative(
-        @P("当前环境的JSON字符串") String environmentJson,
-        @P("当前歌曲名称，可选") String currentSong,
-        @P("叙事主题，可选: comfort/energy/romance/adventure") String theme
-    ) {
-        try {
-            Environment env = objectMapper.readValue(environmentJson, Environment.class);
-            String text = NarrativeTemplates.generate(env, currentSong);
-            NarrativeEmotion emotion = mapEmotion(env.userMood());
-
-            return new Narrative(
-                text,
-                "default",
-                env.timeOfDay() == TimeOfDay.MIDNIGHT ? 0.85 : 1.0,
-                env.timeOfDay() == TimeOfDay.MIDNIGHT ? 0.6 : 0.8,
-                emotion
-            );
-        } catch (Exception e) {
-            return new Narrative(
-                "享受旅途，让音乐陪伴你。",
-                "default", 1.0, 0.8,
-                NarrativeEmotion.NEUTRAL
-            );
-        }
-    }
-
-    private NarrativeEmotion mapEmotion(UserMood mood) {
-        return switch (mood) {
-            case HAPPY, EXCITED -> NarrativeEmotion.ENERGETIC;
-            case CALM -> NarrativeEmotion.CALM;
-            case TIRED -> NarrativeEmotion.GENTLE;
-            case STRESSED -> NarrativeEmotion.WARM;
-        };
-    }
-}
-```
+> **设计变更**：采用简化设计，不创建单独的 Mock Tool 类。
+>
+> - NarrativeTool 委托 NarrativeService 处理业务逻辑
+> - NarrativeTemplates 提供叙事模板库
+> - 如需接入 LLM 生成，只需扩展 NarrativeService 实现
 
 ---
 

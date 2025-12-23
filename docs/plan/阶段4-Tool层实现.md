@@ -2,7 +2,7 @@
 
 ## 状态
 
-⚪ 待开始
+🟢 已完成 (100%)
 
 ## 目标
 
@@ -13,130 +13,106 @@
 ## 前置依赖
 
 - [x] 阶段 2: 设计文档（含重构）
-- [ ] 阶段 3: 数据模型实现（需要 Environment 和 AmbiencePlan 定义）
+- [x] 阶段 3: 数据模型实现（需要 Environment 和 AmbiencePlan 定义）
 - [x] 参考：`docs/design/refactoring-guide.md` Phase 2
 
 ## 任务清单
 
-### MusicTool（简化设计）
+### MusicTool ✅
 
-- [ ] 创建 `MusicTool.java` @Component 类
-- [ ] 添加 `@Tool` 方法：
-  ```java
-  @Tool("根据用户情绪、时段和乘客数量推荐合适的音乐")
-  public MusicRecommendation recommendMusic(
-      @P("目标情绪") String mood,
-      @P("时段") String timeOfDay,
-      @P("乘客数量") int passengerCount,
-      @P("偏好流派，可选") String genre
-  )
-  ```
-- [ ] 注入 MusicService 依赖
-- [ ] 实现筛选逻辑（根据 mood 匹配 BPM 和流派）
-- [ ] 创建 Mock 曲库数据（JSON 文件，约 50-100 首歌）
-- [ ] 编写单元测试
+- [x] 创建 `MusicTool.java` @Component 类
+- [x] 添加 `@Tool` 方法
+- [x] 注入 MusicService 依赖
+- [x] 实现筛选逻辑（根据 mood 匹配 BPM 和流派）
+- [x] 创建 Mock 曲库数据（mock-songs.json，30首歌）
+- [x] 编写单元测试
 
-**预计工作量**：2-3 小时
+### LightTool ✅
 
-### LightTool（简化设计）
+- [x] 创建 `LightTool.java` @Component 类
+- [x] 添加 `@Tool` 方法
+- [x] 注入 LightService 依赖
+- [x] 定义氛围-灯光映射规则（LightPresets）
+- [x] 实现安全模式过滤（L2/L3 模式禁用动态效果）
+- [x] 编写单元测试
 
-- [ ] 创建 `LightTool.java` @Component 类
-- [ ] 添加 `@Tool` 方法：
-  ```java
-  @Tool("根据情绪、时段和天气设置车内氛围灯")
-  public LightSetting setLight(
-      @P("目标情绪") String mood,
-      @P("时段") String timeOfDay,
-      @P("天气") String weather
-  )
-  ```
-- [ ] 注入 LightService 依赖
-- [ ] 定义氛围-灯光映射规则（Presets）：
-  - 放松：暖黄色（2700K），亮度 30%
-  - 活力：金色（4000K），亮度 60%
-  - 专注：冷白色（5000K），亮度 70%
-  - 浪漫：粉紫色，亮度 20%
-- [ ] 实现安全模式过滤（L2/L3 模式禁用动态效果）
-- [ ] 编写单元测试
+### NarrativeTool ✅
 
-**预计工作量**：2-3 小时
+- [x] 创建 `NarrativeTool.java` @Component 类
+- [x] 添加 `@Tool` 方法（参数已优化为简单类型）
+- [x] 注入 NarrativeService 依赖
+- [x] 实现叙事模板库（NarrativeTemplates）
+- [x] 编写单元测试
 
-### NarrativeTool（简化设计）
+### Service 层 ✅
 
-- [ ] 创建 `NarrativeTool.java` @Component 类
-- [ ] 添加 `@Tool` 方法：
-  ```java
-  @Tool("生成 TTS 播报文本，将窗外风景与音乐进行时空编织")
-  public Narrative generateNarrative(
-      @P("当前环境JSON") String environmentJson,
-      @P("当前歌曲名称") String currentSong,
-      @P("叙事主题") String theme
-  )
-  ```
-- [ ] 注入 NarrativeService 依赖
-- [ ] 实现叙事模板库：
-  - 深夜 + 雨天：温暖陪伴型
-  - 早晨 + 晴天：活力鼓励型
-  - 傍晚 + 海滨：惬意浪漫型
-- [ ] 集成 LLM 调用（可选，或使用模板）
-- [ ] 编写单元测试
+- [x] MusicService - 曲库加载 + 推荐算法
+- [x] LightService - 预设映射 + 安全过滤
+- [x] NarrativeService - 模板选择 + 文本生成
 
-**预计工作量**：3-4 小时
+### 辅助类 ✅
 
-### Mock 实现（用于测试和演示）
+- [x] LightPresets - 灯光预设常量
+- [x] NarrativeTemplates - 叙事模板库
 
-- [ ] 创建 `MockMusicTool.java` @Profile("mock")
-- [ ] 创建 `MockLightTool.java` @Profile("mock")
-- [ ] 创建 `MockNarrativeTool.java` @Profile("mock")
-- [ ] 准备 Mock 数据（mock-songs.json）
+### ~~Mock Tool 实现~~（已简化）
 
-**预计工作量**：1-2 小时
+- [x] ~~创建 MockMusicTool.java~~ → **不需要，Service 层已包含完整逻辑**
+- [x] ~~创建 MockLightTool.java~~ → **不需要**
+- [x] ~~创建 MockNarrativeTool.java~~ → **不需要**
+- [x] 准备 Mock 数据（mock-songs.json）✅
 
-### ~~Tool 注册~~（已简化）
-
-- [x] ~~创建 ToolConfig 配置类~~ → **不需要，AiServices 自动注册**
-- [x] ~~将所有 Tool 注册到 Registry~~ → **不需要，框架自动扫描 @Tool**
-
-**说明**：Tool 注册在阶段 5（Agent 编排）中通过 `AiServices.builder().tools(...)` 完成
+**说明**：采用简化设计，Tool 层委托给 Service 层，Service 层包含完整业务逻辑，无需单独的 Mock Tool。
 
 ## 相关文件
 
 ```
-src/main/java/com/vibe/tool/
-├── MusicTool.java          # 音乐推荐 Tool
-├── LightTool.java          # 灯光控制 Tool
-├── NarrativeTool.java      # 叙事生成 Tool
-├── MockMusicTool.java      # Mock 实现（@Profile("mock")）
-├── MockLightTool.java      # Mock 实现
-└── MockNarrativeTool.java  # Mock 实现
-
-src/main/java/com/vibe/service/
-├── MusicService.java       # 音乐业务逻辑
-├── LightService.java       # 灯光业务逻辑
-└── NarrativeService.java   # 叙事业务逻辑
+src/main/java/com/vibe/
+├── tool/                       # Tool 层（3个）
+│   ├── MusicTool.java
+│   ├── LightTool.java
+│   └── NarrativeTool.java
+├── service/                    # Service 层（3个）
+│   ├── MusicService.java
+│   ├── LightService.java
+│   └── NarrativeService.java
+└── support/                    # 辅助类（2个）
+    ├── LightPresets.java
+    └── NarrativeTemplates.java
 
 src/main/resources/mock-data/
-└── mock-songs.json         # Mock 曲库数据
+└── mock-songs.json             # Mock 曲库数据（30首歌）
+
+src/test/java/com/vibe/
+├── service/                    # Service 测试（3个）
+│   ├── MusicServiceTest.java
+│   ├── LightServiceTest.java
+│   └── NarrativeServiceTest.java
+└── tool/                       # Tool 集成测试
+    └── ToolIntegrationTest.java
 ```
 
 ## 完成标准
 
-- [ ] 所有 Tool 使用 @Component + @Tool 注解
-- [ ] 所有 Tool 可被 LangChain4j Agent 正确调用
-- [ ] 单元测试覆盖核心逻辑
-- [ ] Mock 实现完成（用于演示）
-- [ ] Mock 曲库数据准备完成
-- [ ] 代码已提交到 Git
+- [x] 所有 Tool 使用 @Component + @Tool 注解 ✅
+- [x] 所有 Tool 可被 LangChain4j Agent 正确调用 ✅
+- [x] 单元测试覆盖核心逻辑 ✅ (43个新测试，共166个测试通过)
+- [x] Mock 曲库数据准备完成 ✅
+- [ ] 代码已提交到 Git（待用户指令）
 
 ## 问题与笔记
 
-### 重构要点
+### 2025-12-23: 设计优化
 
-1. **无需定义接口**：直接使用 @Component 类
-2. **无需 ToolRegistry**：AiServices 自动管理
-3. **详细的 @Tool 描述**：LLM 会读取描述来决定何时调用
-4. **清晰的 @P 参数说明**：包含可选值和类型
+1. **NarrativeTool 参数优化**：将 `environmentJson` 拆分为简单参数（timeOfDay, weather, gpsTag, userMood），对 LLM 更友好
+2. **简化 Mock 策略**：不创建单独的 Mock Tool，Service 层直接包含完整逻辑
+3. **forFocusMode() 修复**：L2_FOCUS 模式强制使用 STATIC，而不仅仅过滤 isDynamic() 的模式
 
-### 参考示例
+### 统计
 
-查看 `docs/design/tool-interface.md` 获取完整的代码示例和最佳实践。
+- Tool 类：3 个
+- Service 类：3 个
+- 辅助类：2 个
+- 曲库数据：30 首歌
+- 新增测试：43 个
+- 总测试数：166 个（全部通过）

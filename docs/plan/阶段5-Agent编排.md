@@ -13,8 +13,8 @@
 ## 前置依赖
 
 - [x] 阶段 2: 设计文档（含重构）
-- [ ] 阶段 3: 数据模型实现（需要 Environment 和 AmbiencePlan）
-- [ ] 阶段 4: Tool 层实现（需要 MusicTool、LightTool、NarrativeTool）
+- [x] 阶段 3: 数据模型实现（需要 Environment 和 AmbiencePlan）
+- [x] 阶段 4: Tool 层实现（需要 MusicTool、LightTool、NarrativeTool）
 - [x] 参考：`docs/design/refactoring-guide.md` Phase 3, 4
 
 ## 任务清单
