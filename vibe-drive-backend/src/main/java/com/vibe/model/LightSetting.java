@@ -91,10 +91,10 @@ public record LightSetting(
     }
 
     /**
-     * 为 L2 专注模式过滤（禁用动态效果）
+     * 为 L2 专注模式过滤（强制使用静态模式）
      */
     public LightSetting forFocusMode() {
-        if (isDynamic()) {
+        if (mode != LightMode.STATIC) {
             return new LightSetting(color, brightness, LightMode.STATIC, transitionDuration, zones);
         }
         return this;

@@ -4,6 +4,8 @@ import dev.langchain4j.model.output.structured.Description;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
+import java.util.List;
+
 /**
  * 歌曲信息
  * 包含歌曲的基本元数据
@@ -35,6 +37,9 @@ public record Song(
 
     @Description("音乐流派：pop/rock/jazz/classical/electronic/ambient 等")
     String genre,
+
+    @Description("适合的情绪标签列表：happy/calm/tired/stressed/excited")
+    List<String> mood,
 
     @Description("封面图片URL")
     String coverUrl
@@ -81,5 +86,15 @@ public record Song(
      */
     public boolean isFastTempo() {
         return bpm > 120;
+    }
+
+    /**
+     * 判断歌曲是否匹配指定情绪
+     */
+    public boolean matchesMood(String targetMood) {
+        if (mood == null || mood.isEmpty() || targetMood == null) {
+            return true;  // 无情绪标签时默认匹配
+        }
+        return mood.stream().anyMatch(m -> m.equalsIgnoreCase(targetMood));
     }
 }
