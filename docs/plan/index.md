@@ -6,7 +6,7 @@
 |------|------|------|------|
 | 阶段 1 | 项目初始化 | 🟢 已完成 | 100% |
 | 阶段 2 | 设计文档 | 🟢 已完成 | 100% |
-| 阶段 3 | 数据模型实现 | 🟡 进行中 | 30% |
+| 阶段 3 | 数据模型实现 | 🟡 进行中 | 90% |
 | 阶段 4 | Tool 层实现 | ⚪ 待开始 | 0% |
 | 阶段 5 | Agent 编排 | ⚪ 待开始 | 0% |
 | 阶段 6 | API 与 Mock | ⚪ 待开始 | 0% |
@@ -14,22 +14,26 @@
 
 ## 当前阶段
 
-**阶段 3 - 数据模型实现** 🟡 进行中
+**阶段 3 - 数据模型实现** 🟡 进行中 (90%)
 
 ## 当前任务
 
 **已完成**：
-- [x] 枚举类型定义（8个枚举全部完成）
-- [x] Codex Review 设计文档并修正
+- [x] 枚举类型定义（10个枚举全部完成）
+- [x] 枚举 JSON 序列化修复（@JsonValue/@JsonCreator）
+- [x] 核心数据模型（11个 Record）
+- [x] API 模型（3个）
+- [x] Agent 状态模型（3个）
+- [x] SSE 事件模型（9个）
+- [x] Jackson 配置（禁用 getter 自动检测）
+- [x] 代码提交到 Git
 
-**进行中**：
-- [ ] Environment Record 定义（含 @Description）
-- [ ] AmbiencePlan Record 定义（含 @Description）
-- [ ] 子模型定义（MusicRecommendation、LightSetting、Narrative 等）
-
-**下一步**：
+**待完成**：
 - [ ] 添加 Bean Validation 注解
 - [ ] 编写单元测试
+
+**下一阶段**：
+- 阶段 4: Tool 层实现
 
 ## 阶段详情
 
@@ -43,8 +47,10 @@
 
 ## 最近更新
 
-- 2025-12-23: 通讯协议变更：WebSocket → SSE + TokenStream（更新 api-spec、architecture、data-model、阶段6）
-- 2025-12-23: 完成 Codex Review，修正设计文档；分批提交并推送到 GitHub
+- 2025-12-23: 阶段3 数据模型实现完成 90%（36个Java文件，待补充 Bean Validation 和单测）
+- 2025-12-23: 修复枚举 JSON 序列化（@JsonValue/@JsonCreator）+ Jackson 配置
+- 2025-12-23: 通讯协议变更：WebSocket → SSE + TokenStream
+- 2025-12-23: 完成 Codex Review，修正设计文档
 - 2025-12-23: 完成枚举类型实现（8个），进入阶段3
 - 2025-12-22: 新增「阶段2-设计文档」，调整阶段编号
 - 2025-12-22: 创建计划文档系统
