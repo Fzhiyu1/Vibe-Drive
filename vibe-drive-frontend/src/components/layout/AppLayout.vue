@@ -18,10 +18,12 @@ const store = useVibeStore()
         <slot name="ambience" />
       </main>
 
-      <!-- 右侧：音乐 + 串词 -->
+      <!-- 右侧：音乐 + 串词 + 香氛 + 按摩 -->
       <aside class="panel-right">
         <slot name="music" />
         <slot name="narrative" />
+        <slot name="scent" />
+        <slot name="massage" />
       </aside>
     </div>
 
@@ -48,7 +50,7 @@ const store = useVibeStore()
 
 .main-content {
   display: grid;
-  grid-template-columns: 20% 50% 30%;
+  grid-template-columns: 280px 1fr 320px;
   flex: 1;
   min-height: 0;
 }
@@ -65,11 +67,15 @@ const store = useVibeStore()
   background-color: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   padding: 1rem;
+  overflow-y: auto;
 }
 
 .panel-center {
   background-color: var(--bg-primary);
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .panel-right {
@@ -77,6 +83,7 @@ const store = useVibeStore()
   border-left: 1px solid var(--border-color);
   padding: 1rem;
   gap: 1rem;
+  overflow-y: auto;
 }
 
 .panel-bottom {

@@ -38,6 +38,24 @@ const safetyLabels: Record<string, string> = {
   L2_FOCUS: '专注',
   L3_SILENT: '静默',
 }
+
+// 辅助函数
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`
+
+// 将值转换为大写以匹配标签键
+const toUpperKey = (value: string | undefined) => value?.toUpperCase() || ''
+
+const getStressClass = (level: number) => {
+  if (level >= 0.7) return 'status-danger'
+  if (level >= 0.5) return 'status-warning'
+  return 'status-normal'
+}
+
+const getFatigueClass = (level: number) => {
+  if (level >= 0.6) return 'status-danger'
+  if (level >= 0.4) return 'status-warning'
+  return 'status-normal'
+}
 </script>
 
 <template>
@@ -47,11 +65,11 @@ const safetyLabels: Record<string, string> = {
     <div v-if="store.environment" class="info-list">
       <div class="info-item">
         <span class="label">位置</span>
-        <span class="value">{{ gpsLabels[store.environment.gpsTag] }}</span>
+        <span class="value">{{ gpsLabels[toUpperKey(store.environment.gpsTag)] }}</span>
       </div>
       <div class="info-item">
         <span class="label">天气</span>
-        <span class="value">{{ weatherLabels[store.environment.weather] }}</span>
+        <span class="value">{{ weatherLabels[toUpperKey(store.environment.weather)] }}</span>
       </div>
       <div class="info-item">
         <span class="label">车速</span>
@@ -59,12 +77,46 @@ const safetyLabels: Record<string, string> = {
       </div>
       <div class="info-item">
         <span class="label">时段</span>
-        <span class="value">{{ timeLabels[store.environment.timeOfDay] }}</span>
+        <span class="value">{{ timeLabels[toUpperKey(store.environment.timeOfDay)] }}</span>
       </div>
       <div class="info-item">
         <span class="label">乘客</span>
         <span class="value">{{ store.environment.passengerCount }} 人</span>
       </div>
+
+      <!-- 位置信息 -->
+      <template v-if="store.environment.location">
+        <div class="info-item">
+          <span class="label">城市</span>
+          <span class="value">{{ store.environment.location.cityName }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">道路</span>
+          <span class="value">{{ store.environment.location.roadName }}</span>
+        </div>
+      </template>
+
+      <!-- 生理数据 -->
+      <template v-if="store.environment.biometrics">
+        <div class="divider" />
+        <div class="section-title">驾驶员状态</div>
+        <div class="info-item">
+          <span class="label">心率</span>
+          <span class="value">{{ store.environment.biometrics.heartRate }} bpm</span>
+        </div>
+        <div class="info-item">
+          <span class="label">压力</span>
+          <span class="value" :class="getStressClass(store.environment.biometrics.stressLevel)">
+            {{ formatPercent(store.environment.biometrics.stressLevel) }}
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="label">疲劳</span>
+          <span class="value" :class="getFatigueClass(store.environment.biometrics.fatigueLevel)">
+            {{ formatPercent(store.environment.biometrics.fatigueLevel) }}
+          </span>
+        </div>
+      </template>
     </div>
 
     <div v-else class="no-data">
@@ -160,5 +212,24 @@ const safetyLabels: Record<string, string> = {
 .badge.L3_SILENT {
   background-color: var(--accent-danger);
   color: white;
+}
+
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0.25rem 0;
+}
+
+.status-normal {
+  color: var(--accent-success);
+}
+
+.status-warning {
+  color: var(--accent-warning);
+}
+
+.status-danger {
+  color: var(--accent-danger);
 }
 </style>
