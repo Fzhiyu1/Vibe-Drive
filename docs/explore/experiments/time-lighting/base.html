@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Lighting Experiment</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+            background: rgba(20, 20, 20, 0.8);
+            padding: 15px 25px;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .time-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 10px 16px;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .time-btn:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        .time-btn.active {
+            color: white;
+            background: rgba(255,255,255,0.2);
+            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <button class="time-btn" id="btn-auto" onclick="toggleAuto()">▶ 自动</button>
+        <button class="time-btn" id="btn-dawn" onclick="setTime('dawn')">🌅 黎明</button>
+        <button class="time-btn" id="btn-morning" onclick="setTime('morning')">☀️ 上午</button>
+        <button class="time-btn active" id="btn-noon" onclick="setTime('noon')">🌞 正午</button>
+        <button class="time-btn" id="btn-evening" onclick="setTime('evening')">🌇 黄昏</button>
+        <button class="time-btn" id="btn-night" onclick="setTime('night')">🌙 夜晚</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { Sky } from 'three/addons/objects/Sky.js';
+        import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+
+        // 初始化 RectAreaLight
+        RectAreaLightUniformsLib.init();
+
+        // --- 时间光照配置 ---
+        const TIME_LIGHTING = {
+            dawn: {
+                ambient: new THREE.Color(0xffeedd),
+                ambientIntensity: 0.3,
+                sun: new THREE.Color(0xff8844),
+                sunIntensity: 0.4,
+                sunPosition: new THREE.Vector3(-3, 1, -5),
+                background: new THREE.Color(0x1a1520),
+                skyElevation: 5,      // 太阳高度角
+                skyAzimuth: 180       // 太阳方位角
+            },
+            morning: {
+                ambient: new THREE.Color(0xffffff),
+                ambientIntensity: 0.5,
+                sun: new THREE.Color(0xffffee),
+                sunIntensity: 0.6,
+                sunPosition: new THREE.Vector3(-2, 3, -4),
+                background: new THREE.Color(0x202530),
+                skyElevation: 30,
+                skyAzimuth: 180
+            },
+            noon: {
+                ambient: new THREE.Color(0xffffff),
+                ambientIntensity: 0.7,
+                sun: new THREE.Color(0xffffff),
+                sunIntensity: 0.8,
+                sunPosition: new THREE.Vector3(0, 5, -3),
+                background: new THREE.Color(0x303540),
+                skyElevation: 80,
+                skyAzimuth: 180
+            },
+            evening: {
+                ambient: new THREE.Color(0xffddcc),
+                ambientIntensity: 0.4,
+                sun: new THREE.Color(0xff6633),
+                sunIntensity: 0.5,
+                sunPosition: new THREE.Vector3(3, 1, -5),
+                background: new THREE.Color(0x1a1015),
+                skyElevation: 10,
+                skyAzimuth: 250       // 西边落下，与夜晚连续
+            },
+            night: {
+                ambient: new THREE.Color(0x334455),
+                ambientIntensity: 0.15,      // 提高最低亮度
+                sun: new THREE.Color(0x111122),
+                sunIntensity: 0.05,
+                sunPosition: new THREE.Vector3(0, -2, -5),
+                background: new THREE.Color(0x020204),
+                skyElevation: -30,
+                skyAzimuth: 270
+            }
+        };
+
+        let currentTime = 'noon';
+        let autoMode = false;
+        let dayProgress = 0.5;  // 0-1 表示一天，0.5 = 正午
+
+        const TIME_ORDER = ['dawn', 'morning', 'noon', 'evening', 'night'];
+        const TIME_PROGRESS = { dawn: 0.2, morning: 0.35, noon: 0.5, evening: 0.7, night: 0.9 };
+
+        const currentLighting = {
+            ambient: new THREE.Color(TIME_LIGHTING.noon.ambient),
+            ambientIntensity: TIME_LIGHTING.noon.ambientIntensity,
+            sun: new THREE.Color(TIME_LIGHTING.noon.sun),
+            sunIntensity: TIME_LIGHTING.noon.sunIntensity,
+            sunPosition: TIME_LIGHTING.noon.sunPosition.clone(),
+            background: new THREE.Color(TIME_LIGHTING.noon.background),
+            skyElevation: TIME_LIGHTING.noon.skyElevation,
+            skyAzimuth: TIME_LIGHTING.noon.skyAzimuth
+        };
+
+        window.setTime = (timeName) => {
+            autoMode = false;
+            document.getElementById('btn-auto').textContent = '▶ 自动';
+            document.getElementById('btn-auto').classList.remove('active');
+
+            currentTime = timeName;
+            dayProgress = TIME_PROGRESS[timeName];
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${timeName}`).classList.add('active');
+        };
+
+        window.toggleAuto = () => {
+            autoMode = !autoMode;
+            const btn = document.getElementById('btn-auto');
+            if (autoMode) {
+                btn.textContent = '⏸ 暂停';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '▶ 自动';
+                btn.classList.remove('active');
+            }
+        };
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x303540);
+
+        // --- Sky Setup ---
+        const sky = new Sky();
+        sky.scale.setScalar(450000);
+        scene.add(sky);
+
+        const skyUniforms = sky.material.uniforms;
+        skyUniforms['turbidity'].value = 1;
+        skyUniforms['rayleigh'].value = 0.5;
+        skyUniforms['mieCoefficient'].value = 0.003;  // 稍微加大
+        skyUniforms['mieDirectionalG'].value = 0.65;  // 稍微集中
+
+        const sunVector = new THREE.Vector3();
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.3, 0.6);  // 抬高视角
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 0.5;  // 降低曝光
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0.8, -1.5);
+        controls.enablePan = false;
+        controls.maxPolarAngle = Math.PI / 1.9;
+        controls.minDistance = 0.1;
+        controls.maxDistance = 5;
+
+        // --- Materials ---
+        const darkMat = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            roughness: 0.7,
+            metalness: 0.2
+        });
+        const seatMat = new THREE.MeshStandardMaterial({
+            color: 0x222222,
+            roughness: 0.9
+        });
+
+        // --- Car Interior ---
+        // Dashboard
+        const dash = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.6, 1.0), darkMat);
+        dash.position.set(0, 0.7, -1.0);
+        scene.add(dash);
+
+        // Screen
+        const screenMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.3), screenMat);
+        screen.position.set(0, 1.05, -0.49);
+        screen.rotation.x = -0.3;
+        scene.add(screen);
+
+        // 屏幕发光
+        const screenLight = new THREE.RectAreaLight(0xffffff, 15, 0.8, 0.3);
+        screenLight.position.set(0, 1.05, -0.48);
+        screenLight.rotation.x = -0.3;
+        screenLight.lookAt(0, 1.05, 1);  // 朝向前方
+        scene.add(screenLight);
+
+        // 车头灯（照向前方）
+        const headLightColor = 0xffffee;
+
+        // 左车灯（远光灯）
+        const leftHeadLight = new THREE.SpotLight(headLightColor, 3000, 100, Math.PI / 8, 0.3);
+        leftHeadLight.position.set(-0.8, 0.5, -1.5);
+        leftHeadLight.target.position.set(-0.8, 0, -10);
+        scene.add(leftHeadLight);
+        scene.add(leftHeadLight.target);
+
+        // 左车灯发光体
+        const leftLightBulb = new THREE.Mesh(
+            new THREE.SphereGeometry(0.05, 16, 16),
+            new THREE.MeshBasicMaterial({ color: headLightColor })
+        );
+        leftLightBulb.position.set(-0.8, 0.5, -1.5);
+        scene.add(leftLightBulb);
+
+        // 右车灯（远光灯）
+        const rightHeadLight = new THREE.SpotLight(headLightColor, 3000, 100, Math.PI / 8, 0.3);
+        rightHeadLight.position.set(0.8, 0.5, -1.5);
+        rightHeadLight.target.position.set(0.8, 0, -10);
+        scene.add(rightHeadLight);
+        scene.add(rightHeadLight.target);
+
+        // 右车灯发光体
+        const rightLightBulb = new THREE.Mesh(
+            new THREE.SphereGeometry(0.05, 16, 16),
+            new THREE.MeshBasicMaterial({ color: headLightColor })
+        );
+        rightLightBulb.position.set(0.8, 0.5, -1.5);
+        scene.add(rightLightBulb);
+
+        // Steering Wheel
+        const wheelGroup = new THREE.Group();
+        wheelGroup.add(new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.02, 16, 50), darkMat));
+        wheelGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.04, 0.02), darkMat));
+        const column = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.4, 16), darkMat);
+        column.rotation.x = Math.PI / 2;
+        column.position.z = -0.2;
+        wheelGroup.add(column);
+        wheelGroup.position.set(-0.45, 0.85, -0.2);
+        wheelGroup.rotation.x = -0.3;
+        scene.add(wheelGroup);
+
+        // Seats
+        function createSeat(x) {
+            const group = new THREE.Group();
+            group.add(new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.15, 0.6), seatMat));
+            const back = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.15), seatMat);
+            back.position.set(0, 0.4, 0.25);
+            back.rotation.x = -0.1;
+            group.add(back);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), seatMat);
+            head.position.set(0, 0.85, 0.2);
+            group.add(head);
+            group.position.set(x, 0.3, 0.2);
+            return group;
+        }
+        scene.add(createSeat(-0.45));
+        scene.add(createSeat(0.45));
+
+        // Floor
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), darkMat);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // 车底盘
+        const chassisMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 4), chassisMat);
+        chassis.position.set(0, 0.05, -0.5);
+        scene.add(chassis);
+
+        // 无限长的道路
+        const roadMat = new THREE.MeshStandardMaterial({
+            color: 0x222222,
+            roughness: 0.8
+        });
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(4, 200), roadMat);
+        road.rotation.x = -Math.PI / 2;
+        road.position.set(0, 0.01, -100);
+        scene.add(road);
+
+        // 道路中线
+        const lineMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const centerLine = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 200), lineMat);
+        centerLine.rotation.x = -Math.PI / 2;
+        centerLine.position.set(0, 0.02, -100);
+        scene.add(centerLine);
+
+        // A-Pillars
+        const pillarGeo = new THREE.CylinderGeometry(0.04, 0.06, 1.5, 8);
+        const lPillar = new THREE.Mesh(pillarGeo, darkMat);
+        lPillar.position.set(-0.8, 1.5, -0.5);
+        lPillar.rotation.z = 0.3;
+        lPillar.rotation.x = -0.5;
+        scene.add(lPillar);
+        const rPillar = new THREE.Mesh(pillarGeo, darkMat);
+        rPillar.position.set(0.8, 1.5, -0.5);
+        rPillar.rotation.z = -0.3;
+        rPillar.rotation.x = -0.5;
+        scene.add(rPillar);
+
+        // --- Ambient Light Strips (Gemini Shader 版) ---
+        const lightStripVertexShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        const lightStripFragmentShader = `
+            uniform float uTime;
+            uniform vec3 uColorA;
+            uniform vec3 uColorB;
+            uniform float uSpeed;
+            uniform float uSharpness;
+            varying vec2 vUv;
+
+            void main() {
+                float coord = vUv.x;
+                float phase = uTime * uSpeed;
+                float wave = sin(coord * 6.28 + phase);
+                wave = (wave + 1.0) * 0.5;
+                wave = pow(wave, uSharpness);
+                vec3 finalColor = mix(uColorA, uColorB, wave);
+                gl_FragColor = vec4(finalColor, 1.0);
+            }
+        `;
+
+        const ambienceUniforms = {
+            uTime: { value: 0 },
+            uColorA: { value: new THREE.Color(0x44ddff) },  // 更亮
+            uColorB: { value: new THREE.Color(0x00aaff) },  // 更亮
+            uSpeed: { value: 0.5 },
+            uSharpness: { value: 1.0 }
+        };
+
+        const stripMat = new THREE.ShaderMaterial({
+            vertexShader: lightStripVertexShader,
+            fragmentShader: lightStripFragmentShader,
+            uniforms: ambienceUniforms,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        // Dash strip
+        const dashStrip = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.02, 0.02), stripMat);
+        dashStrip.position.set(0, 0.72, -0.49);
+        scene.add(dashStrip);
+
+        // Door strips
+        const lDoorStrip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 2.0), stripMat);
+        lDoorStrip.position.set(-1.0, 0.8, 0.5);
+        scene.add(lDoorStrip);
+        const rDoorStrip = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 2.0), stripMat);
+        rDoorStrip.position.set(1.0, 0.8, 0.5);
+        scene.add(rDoorStrip);
+
+        // 氛围灯光源（RectAreaLight 均匀发光）
+        const stripLightColor = 0x00aaff;
+
+        // 仪表台灯带光源
+        const dashLight = new THREE.RectAreaLight(stripLightColor, 20, 2.2, 0.1);
+        dashLight.position.set(0, 0.72, -0.48);
+        dashLight.lookAt(0, 0.72, 0);
+        scene.add(dashLight);
+
+        // 左车门灯带光源
+        const lDoorLight = new THREE.RectAreaLight(stripLightColor, 10, 0.1, 1.5);
+        lDoorLight.position.set(-0.99, 0.8, 0);
+        lDoorLight.lookAt(0, 0.8, 0);
+        scene.add(lDoorLight);
+
+        // 右车门灯带光源
+        const rDoorLight = new THREE.RectAreaLight(stripLightColor, 10, 0.1, 1.5);
+        rDoorLight.position.set(0.99, 0.8, 0);
+        rDoorLight.lookAt(0, 0.8, 0);
+        scene.add(rDoorLight);
+
+        // --- Lighting System ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        sunLight.position.set(0, 5, -3);
+        scene.add(sunLight);
+
+        const fillLight = new THREE.DirectionalLight(0x8888ff, 0.2);
+        fillLight.position.set(2, 3, 2);
+        scene.add(fillLight);
+
+        // 车内顶灯（夜晚保持可见）
+        const interiorLight = new THREE.PointLight(0xffffff, 0.5, 5);
+        interiorLight.position.set(0, 1.5, -0.5);
+        scene.add(interiorLight);
+
+        // --- Animation ---
+        const clock = new THREE.Clock();
+
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const dt = clock.getDelta();
+            const lerpFactor = dt * 2.0;
+
+            // 自动模式：时间推进
+            if (autoMode) {
+                dayProgress += dt / 30;  // 30秒一个周期
+                if (dayProgress > 1) dayProgress = 0;
+            }
+
+            // 线性插值：根据 dayProgress 计算光照
+            // 时间点映射：0=午夜, 0.25=黎明, 0.4=上午, 0.5=正午, 0.7=黄昏, 0.9=夜晚
+            const timePoints = [
+                { p: 0.0, t: 'night' },
+                { p: 0.2, t: 'dawn' },
+                { p: 0.35, t: 'morning' },
+                { p: 0.5, t: 'noon' },
+                { p: 0.7, t: 'evening' },
+                { p: 0.9, t: 'night' },
+                { p: 1.0, t: 'night' }
+            ];
+
+            // 找到当前进度所在的区间
+            let fromIdx = 0;
+            for (let i = 0; i < timePoints.length - 1; i++) {
+                if (dayProgress >= timePoints[i].p && dayProgress < timePoints[i + 1].p) {
+                    fromIdx = i;
+                    break;
+                }
+            }
+
+            const from = timePoints[fromIdx];
+            const to = timePoints[fromIdx + 1];
+            const segmentProgress = (dayProgress - from.p) / (to.p - from.p);
+
+            const fromLight = TIME_LIGHTING[from.t];
+            const toLight = TIME_LIGHTING[to.t];
+
+            // 线性插值所有参数
+            currentLighting.ambient.lerpColors(fromLight.ambient, toLight.ambient, segmentProgress);
+            currentLighting.ambientIntensity = lerp(fromLight.ambientIntensity, toLight.ambientIntensity, segmentProgress);
+            currentLighting.sun.lerpColors(fromLight.sun, toLight.sun, segmentProgress);
+            currentLighting.sunIntensity = lerp(fromLight.sunIntensity, toLight.sunIntensity, segmentProgress);
+            currentLighting.sunPosition.lerpVectors(fromLight.sunPosition, toLight.sunPosition, segmentProgress);
+            currentLighting.background.lerpColors(fromLight.background, toLight.background, segmentProgress);
+            currentLighting.skyElevation = lerp(fromLight.skyElevation, toLight.skyElevation, segmentProgress);
+            currentLighting.skyAzimuth = lerp(fromLight.skyAzimuth, toLight.skyAzimuth, segmentProgress);
+
+            // 更新 UI 高亮
+            if (autoMode) {
+                const currentTimeName = from.t;
+                document.querySelectorAll('.time-btn:not(#btn-auto)').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`btn-${currentTimeName}`).classList.add('active');
+            }
+
+            // 应用光照
+            ambientLight.color.copy(currentLighting.ambient);
+            ambientLight.intensity = currentLighting.ambientIntensity;
+            sunLight.color.copy(currentLighting.sun);
+            sunLight.intensity = currentLighting.sunIntensity;
+            sunLight.position.copy(currentLighting.sunPosition);
+
+            // 更新天空
+            const phi = THREE.MathUtils.degToRad(90 - currentLighting.skyElevation);
+            const theta = THREE.MathUtils.degToRad(currentLighting.skyAzimuth);
+            sunVector.setFromSphericalCoords(1, phi, theta);
+            skyUniforms['sunPosition'].value.copy(sunVector);
+
+            // 更新氛围灯 Shader
+            ambienceUniforms.uTime.value = clock.getElapsedTime();
+
+            // 夜晚隐藏天空，用纯色背景
+            if (currentLighting.skyElevation < -10) {
+                sky.visible = false;
+                scene.background.copy(currentLighting.background);
+            } else {
+                sky.visible = true;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
