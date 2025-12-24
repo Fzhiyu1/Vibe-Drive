@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useVibeStore } from '@/stores/vibeStore'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import EnvironmentPanel from '@/components/environment/EnvironmentPanel.vue'
-import AmbienceVisualizer from '@/components/ambience/AmbienceVisualizer.vue'
+import ThreeVisualizer from '@/components/ambience/ThreeVisualizer.vue'
 import MusicPlayer from '@/components/music/MusicPlayer.vue'
 import NarrativeDisplay from '@/components/narrative/NarrativeDisplay.vue'
 import ScentDisplay from '@/components/scent/ScentDisplay.vue'
@@ -50,7 +50,7 @@ function handleSelect(env: Environment) {
     </template>
 
     <template #ambience>
-      <AmbienceVisualizer />
+      <ThreeVisualizer />
     </template>
 
     <template #music>
