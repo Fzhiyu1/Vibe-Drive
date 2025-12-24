@@ -39,7 +39,8 @@ class ToolIntegrationTest {
     @Test
     @DisplayName("LightTool 应该正确设置灯光")
     void lightToolShouldSetLight() {
-        LightSetting result = lightTool.setLight("happy", "morning", "sunny");
+        LightSetting result = lightTool.setLight(
+            "#FFD700", "#FFA500", 60, "GRADIENT", 0.5, 2.0);
 
         assertThat(result).isNotNull();
         assertThat(result.color()).isNotNull();
@@ -73,7 +74,8 @@ class ToolIntegrationTest {
         assertThat(music.songs()).isNotEmpty();
 
         // 2. 设置灯光
-        LightSetting light = lightTool.setLight(mood, timeOfDay, weather);
+        LightSetting light = lightTool.setLight(
+            "#87CEEB", "#ADD8E6", 50, "BREATHING", 0.3, 1.5);
         assertThat(light).isNotNull();
 
         // 3. 生成叙事（使用推荐的第一首歌）

@@ -40,8 +40,11 @@ public class LightService {
 
         return new LightSetting(
             color,
+            null,  // colorB
             brightness,
             mode,
+            null,  // speed
+            null,  // sharpness
             DEFAULT_TRANSITION_MS,
             createDefaultZones(color, brightness)
         );

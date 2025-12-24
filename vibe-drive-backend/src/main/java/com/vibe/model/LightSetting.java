@@ -16,8 +16,12 @@ import java.util.List;
 @Description("氛围灯设置，包含颜色、亮度和动态效果")
 public record LightSetting(
     @Valid
-    @Description("灯光颜色和色温")
+    @Description("灯光主色")
     LightColor color,
+
+    @Valid
+    @Description("灯光副色，用于流光/渐变效果")
+    LightColor colorB,
 
     @Min(value = 0, message = "Brightness must be at least 0")
     @Max(value = 100, message = "Brightness must be at most 100")
@@ -27,6 +31,12 @@ public record LightSetting(
     @NotNull(message = "Light mode cannot be null")
     @Description("灯光模式：STATIC（静态）/BREATHING（呼吸）/GRADIENT（渐变）/PULSE（脉冲）")
     LightMode mode,
+
+    @Description("流动速度，范围 0.0-2.0")
+    Float speed,
+
+    @Description("锐度，范围 1.0-10.0")
+    Float sharpness,
 
     @Min(value = 0, message = "Transition duration must be non-negative")
     @Description("颜色过渡时长，单位毫秒")
@@ -73,21 +83,21 @@ public record LightSetting(
      * 创建静态灯光设置
      */
     public static LightSetting staticLight(LightColor color, int brightness) {
-        return new LightSetting(color, brightness, LightMode.STATIC, DEFAULT_TRANSITION_DURATION, null);
+        return new LightSetting(color, null, brightness, LightMode.STATIC, null, null, DEFAULT_TRANSITION_DURATION, null);
     }
 
     /**
      * 创建呼吸灯效果
      */
     public static LightSetting breathing(LightColor color, int brightness) {
-        return new LightSetting(color, brightness, LightMode.BREATHING, 2000, null);
+        return new LightSetting(color, null, brightness, LightMode.BREATHING, 0.3f, null, 2000, null);
     }
 
     /**
      * 创建渐变效果
      */
-    public static LightSetting gradient(LightColor color, int brightness) {
-        return new LightSetting(color, brightness, LightMode.GRADIENT, 3000, null);
+    public static LightSetting gradient(LightColor color, LightColor colorB, int brightness) {
+        return new LightSetting(color, colorB, brightness, LightMode.GRADIENT, 0.5f, 1.0f, 3000, null);
     }
 
     /**
@@ -95,7 +105,7 @@ public record LightSetting(
      */
     public LightSetting forFocusMode() {
         if (mode != LightMode.STATIC) {
-            return new LightSetting(color, brightness, LightMode.STATIC, transitionDuration, zones);
+            return new LightSetting(color, colorB, brightness, LightMode.STATIC, 0f, sharpness, transitionDuration, zones);
         }
         return this;
     }
@@ -104,6 +114,6 @@ public record LightSetting(
      * 调整亮度
      */
     public LightSetting withBrightness(int newBrightness) {
-        return new LightSetting(color, newBrightness, mode, transitionDuration, zones);
+        return new LightSetting(color, colorB, newBrightness, mode, speed, sharpness, transitionDuration, zones);
     }
 }
