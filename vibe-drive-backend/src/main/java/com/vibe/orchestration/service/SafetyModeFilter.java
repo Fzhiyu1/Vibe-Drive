@@ -39,6 +39,8 @@ public class SafetyModeFilter {
             plan.music(),
             plan.light() != null ? plan.light().forFocusMode() : null,
             plan.narrative(),
+            plan.scent(),
+            plan.massage() != null ? plan.massage().forHighSpeed() : null,
             plan.safetyMode(),
             plan.reasoning(),
             plan.createdAt()

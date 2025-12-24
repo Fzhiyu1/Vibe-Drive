@@ -6,8 +6,10 @@ import com.vibe.agent.VibeAgent;
 import com.vibe.agent.VibeAgentFactory;
 import com.vibe.model.AmbiencePlan;
 import com.vibe.model.LightSetting;
+import com.vibe.model.MassageSetting;
 import com.vibe.model.MusicRecommendation;
 import com.vibe.model.Narrative;
+import com.vibe.model.ScentSetting;
 import com.vibe.model.ToolExecutionInfo;
 import com.vibe.model.enums.SafetyMode;
 import com.vibe.orchestration.callback.VibeStreamCallback;
@@ -272,6 +274,8 @@ public class VibeDialogService {
                 .music(toolResults.music())
                 .light(toolResults.light())
                 .narrative(toolResults.narrative())
+                .scent(toolResults.scent())
+                .massage(toolResults.massage())
                 .build();
     }
 
@@ -282,6 +286,8 @@ public class VibeDialogService {
         private final AtomicReference<MusicRecommendation> music = new AtomicReference<>();
         private final AtomicReference<LightSetting> light = new AtomicReference<>();
         private final AtomicReference<Narrative> narrative = new AtomicReference<>();
+        private final AtomicReference<ScentSetting> scent = new AtomicReference<>();
+        private final AtomicReference<MassageSetting> massage = new AtomicReference<>();
 
         private VibeToolResults(ObjectMapper objectMapper) {
             this.objectMapper = objectMapper;
@@ -296,6 +302,8 @@ public class VibeDialogService {
                     case "recommendMusic" -> music.set(objectMapper.readValue(resultJson, MusicRecommendation.class));
                     case "setLight" -> light.set(objectMapper.readValue(resultJson, LightSetting.class));
                     case "generateNarrative" -> narrative.set(objectMapper.readValue(resultJson, Narrative.class));
+                    case "setScent" -> scent.set(objectMapper.readValue(resultJson, ScentSetting.class));
+                    case "setMassage" -> massage.set(objectMapper.readValue(resultJson, MassageSetting.class));
                     default -> log.debug("Skip tool result parsing: toolName={}", toolName);
                 }
             } catch (Exception e) {
@@ -313,6 +321,14 @@ public class VibeDialogService {
 
         private Narrative narrative() {
             return narrative.get();
+        }
+
+        private ScentSetting scent() {
+            return scent.get();
+        }
+
+        private MassageSetting massage() {
+            return massage.get();
         }
     }
 

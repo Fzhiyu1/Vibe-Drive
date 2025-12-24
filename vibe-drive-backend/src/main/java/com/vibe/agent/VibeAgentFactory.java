@@ -1,8 +1,10 @@
 package com.vibe.agent;
 
 import com.vibe.tool.LightTool;
+import com.vibe.tool.MassageTool;
 import com.vibe.tool.MusicTool;
 import com.vibe.tool.NarrativeTool;
+import com.vibe.tool.ScentTool;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.StreamingChatModel;
@@ -23,6 +25,8 @@ public class VibeAgentFactory {
     private final MusicTool musicTool;
     private final LightTool lightTool;
     private final NarrativeTool narrativeTool;
+    private final ScentTool scentTool;
+    private final MassageTool massageTool;
     private final PromptAssembler promptAssembler;
 
     @Value("${vibe.agent.max-messages:20}")
@@ -34,12 +38,16 @@ public class VibeAgentFactory {
             MusicTool musicTool,
             LightTool lightTool,
             NarrativeTool narrativeTool,
+            ScentTool scentTool,
+            MassageTool massageTool,
             PromptAssembler promptAssembler) {
         this.streamingModel = streamingModel;
         this.memoryStore = memoryStore;
         this.musicTool = musicTool;
         this.lightTool = lightTool;
         this.narrativeTool = narrativeTool;
+        this.scentTool = scentTool;
+        this.massageTool = massageTool;
         this.promptAssembler = promptAssembler;
     }
 
@@ -58,7 +66,7 @@ public class VibeAgentFactory {
             .streamingChatModel(streamingModel)
             .chatMemoryProvider(memoryProvider)
             .systemMessageProvider(id -> promptAssembler.assembleSystemPrompt())
-            .tools(musicTool, lightTool, narrativeTool)
+            .tools(musicTool, lightTool, narrativeTool, scentTool, massageTool)
             .build();
     }
 }
