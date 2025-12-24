@@ -1,6 +1,8 @@
 package com.vibe.config;
 
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
@@ -36,6 +38,8 @@ public class VibeAgentConfig {
                 .baseUrl(baseUrl)
                 .modelName(modelName)
                 .temperature(temperature)
+                .logRequests(true)
+                .logResponses(true)
                 .build();
     }
 
@@ -45,5 +49,20 @@ public class VibeAgentConfig {
     @Bean
     public ChatMemoryStore chatMemoryStore() {
         return new InMemoryChatMemoryStore();
+    }
+
+    /**
+     * 非流式聊天模型（用于环境生成等同步调用）
+     */
+    @Bean
+    public ChatModel chatModel() {
+        return OpenAiChatModel.builder()
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(modelName)
+                .temperature(temperature)
+                .logRequests(true)
+                .logResponses(true)
+                .build();
     }
 }

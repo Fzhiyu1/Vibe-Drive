@@ -1,8 +1,13 @@
 package com.vibe.controller;
 
+import com.vibe.agent.EnvironmentAgent;
+import com.vibe.agent.EnvironmentAgentFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vibe.model.Environment;
 import com.vibe.model.api.*;
 import com.vibe.model.event.AgentStatusChangedEvent;
+import com.vibe.simulator.EnvironmentSimulator;
+import com.vibe.simulator.ScenarioType;
 import com.vibe.model.event.AmbienceChangedEvent;
 import com.vibe.model.event.SafetyModeChangedEvent;
 import com.vibe.model.enums.SafetyMode;
@@ -37,16 +42,22 @@ public class VibeController {
     private final VibeSessionStatusStore statusStore;
     private final SseEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final EnvironmentSimulator environmentSimulator;
+    private final EnvironmentAgent environmentAgent;
 
     public VibeController(
             VibeDialogService dialogService,
             VibeSessionStatusStore statusStore,
             SseEventPublisher eventPublisher,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            EnvironmentSimulator environmentSimulator,
+            EnvironmentAgentFactory environmentAgentFactory) {
         this.dialogService = dialogService;
         this.statusStore = statusStore;
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
+        this.environmentSimulator = environmentSimulator;
+        this.environmentAgent = environmentAgentFactory.createAgent();
     }
 
     @PostMapping("/analyze")
@@ -190,5 +201,19 @@ public class VibeController {
         // 目前仅记录日志
 
         return ApiResponse.success(null);
+    }
+
+    @GetMapping("/simulator/scenario")
+    @Operation(summary = "获取模拟场景", description = "根据场景类型生成模拟环境数据")
+    public Environment getScenario(@RequestParam ScenarioType type) {
+        log.info("获取模拟场景: type={}", type);
+        return environmentSimulator.generateScenario(type);
+    }
+
+    @PostMapping("/environment/generate")
+    @Operation(summary = "AI生成环境", description = "根据自然语言描述生成环境数据")
+    public Environment generateEnvironment(@RequestBody GenerateEnvRequest request) {
+        log.info("AI生成环境: description={}", request.description());
+        return environmentAgent.generate(request.description());
     }
 }
