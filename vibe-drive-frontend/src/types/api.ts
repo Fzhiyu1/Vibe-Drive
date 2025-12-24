@@ -12,7 +12,47 @@ export type NarrativeEmotion = 'NEUTRAL' | 'WARM' | 'ENERGETIC' | 'CALM' | 'GENT
 export type AnalyzeAction = 'APPLY' | 'NO_ACTION'
 export type ScenarioType = 'LATE_NIGHT_RETURN' | 'WEEKEND_FAMILY_TRIP' | 'MORNING_COMMUTE' | 'RANDOM'
 
+// 新增枚举类型
+export type ScentType = 'LAVENDER' | 'PEPPERMINT' | 'OCEAN' | 'FOREST' | 'CITRUS' | 'VANILLA' | 'NONE'
+export type MassageMode = 'RELAX' | 'ENERGIZE' | 'COMFORT' | 'SPORT' | 'OFF'
+export type MassageZone = 'BACK' | 'LUMBAR' | 'SHOULDER' | 'THIGH' | 'ALL'
+
 // ============ 核心数据结构 ============
+
+// 新增数据结构
+export interface PoiInfo {
+  name: string
+  category: string
+  distanceMeters: number
+}
+
+export interface LocationInfo {
+  latitude: number
+  longitude: number
+  cityName?: string
+  districtName?: string
+  roadName?: string
+  nearbyPois?: PoiInfo[]
+}
+
+export interface DriverBiometrics {
+  heartRate: number
+  stressLevel: number
+  fatigueLevel: number
+  bodyTemperature: number
+}
+
+export interface ScentSetting {
+  type: ScentType
+  intensity: number
+  durationMinutes: number
+}
+
+export interface MassageSetting {
+  mode: MassageMode
+  zones: MassageZone[]
+  intensity: number
+}
 
 export interface Environment {
   gpsTag: GpsTag
@@ -22,6 +62,8 @@ export interface Environment {
   timeOfDay: TimeOfDay
   passengerCount: number
   routeType: RouteType
+  biometrics?: DriverBiometrics
+  location?: LocationInfo
   timestamp?: string
 }
 
@@ -79,6 +121,8 @@ export interface AmbiencePlan {
   music?: MusicRecommendation
   light?: LightSetting
   narrative?: Narrative
+  scent?: ScentSetting
+  massage?: MassageSetting
   safetyMode: SafetyMode
   reasoning?: string
   createdAt: string
