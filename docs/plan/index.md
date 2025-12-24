@@ -34,6 +34,25 @@
 - [x] 环境生成智能体（AI 根据描述生成环境）
 - [x] 场景选择弹窗（预设场景 + AI 生成）
 
+**Three.js 车内环境**：
+- [x] 设计文档（docs/design/threejs-car/）
+- [x] 类型定义（types/three.ts）
+- [x] 场景初始化（useThreeScene.ts）
+- [x] 车内几何体（useCarInterior.ts）
+- [x] 时间光照系统（useTimeOfDay.ts）
+- [x] 氛围灯系统（useAmbienceLight.ts）
+- [x] 香氛粒子系统（useScentParticles.ts）
+- [x] 车机屏幕系统（useCarScreen.ts）
+- [x] 3D 可视化组件（ThreeVisualizer.vue）
+- [x] 集成到主视图
+
+**氛围灯优化**：
+- [x] LightTool 改为 AI 直接输入参数模式（颜色、亮度、速度、锐度）
+- [x] 灯带几何体改为 BoxGeometry（各角度可见）
+- [x] 流光效果增强（colorB 对比色、speed 范围 0-5）
+- [x] RectAreaLight intensity 同步 brightness 更新
+- [x] Shader 最低 50% 亮度保护
+
 ## 阶段详情
 
 - [阶段1-项目初始化](./阶段1-项目初始化.md)
@@ -46,6 +65,10 @@
 
 ## 最近更新
 
+- 2025-12-25: 氛围灯系统优化（AI直接参数、流光增强、亮度修复）
+- 2025-12-25: 修复环境生成 AI prompt（强制调用 Tool）
+- 2025-12-25: 实现 Three.js 车内环境可视化（5个 Composables + 组件）
+- 2025-12-25: 添加 Three.js 设计文档（docs/design/threejs-car/）
 - 2025-12-24: 🚀 进入扩增阶段，核心功能全部完成
 - 2025-12-24: 实现环境生成智能体（AI 根据描述生成环境）
 - 2025-12-24: 添加香氛和按摩系统（Tool + 前端组件）
