@@ -44,6 +44,12 @@ public record Environment(
     @Description("路线类型：HIGHWAY/URBAN/MOUNTAIN/COASTAL/TUNNEL")
     RouteType routeType,
 
+    @Description("驾驶员生理数据，包含心率、压力、疲劳等指标")
+    DriverBiometrics biometrics,
+
+    @Description("精确位置信息，包含经纬度、地名和附近兴趣点")
+    LocationInfo location,
+
     @Description("数据采集时间戳")
     Instant timestamp
 ) {
@@ -129,6 +135,8 @@ public record Environment(
         private TimeOfDay timeOfDay = TimeOfDay.MORNING;
         private int passengerCount = 1;
         private RouteType routeType = RouteType.URBAN;
+        private DriverBiometrics biometrics;
+        private LocationInfo location;
         private Instant timestamp;
 
         public Builder gpsTag(GpsTag gpsTag) {
@@ -166,13 +174,23 @@ public record Environment(
             return this;
         }
 
+        public Builder biometrics(DriverBiometrics biometrics) {
+            this.biometrics = biometrics;
+            return this;
+        }
+
+        public Builder location(LocationInfo location) {
+            this.location = location;
+            return this;
+        }
+
         public Builder timestamp(Instant timestamp) {
             this.timestamp = timestamp;
             return this;
         }
 
         public Environment build() {
-            return new Environment(gpsTag, weather, speed, userMood, timeOfDay, passengerCount, routeType, timestamp);
+            return new Environment(gpsTag, weather, speed, userMood, timeOfDay, passengerCount, routeType, biometrics, location, timestamp);
         }
     }
 }
