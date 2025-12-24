@@ -29,6 +29,14 @@ public record AmbiencePlan(
     @Description("TTS播报的叙事文本及语音参数")
     Narrative narrative,
 
+    @Valid
+    @Description("香氛设置，包含香氛类型、强度和持续时间")
+    ScentSetting scent,
+
+    @Valid
+    @Description("按摩设置，包含按摩模式、区域和强度")
+    MassageSetting massage,
+
     @NotNull(message = "Safety mode cannot be null")
     @Description("当前安全模式：L1_NORMAL（正常）/L2_FOCUS（专注）/L3_SILENT（静默）")
     SafetyMode safetyMode,
@@ -64,6 +72,8 @@ public record AmbiencePlan(
                 music,
                 null,  // 禁用灯光
                 narrative != null ? narrative.withReducedVolume() : null,
+                scent != null ? scent.withIntensity(Math.min(scent.intensity(), 3)) : null,
+                massage != null ? MassageSetting.off() : null,
                 safetyMode,
                 reasoning,
                 createdAt
@@ -73,6 +83,8 @@ public record AmbiencePlan(
                 music,
                 light != null ? light.forFocusMode() : null,  // 禁用动态效果
                 narrative,
+                scent,
+                massage != null ? massage.forHighSpeed() : null,
                 safetyMode,
                 reasoning,
                 createdAt
@@ -118,6 +130,8 @@ public record AmbiencePlan(
             null,
             null,
             null,
+            null,
+            null,
             SafetyMode.L3_SILENT,
             "高速行驶中，静默模式，不主动推荐",
             null
@@ -139,6 +153,8 @@ public record AmbiencePlan(
         private MusicRecommendation music;
         private LightSetting light;
         private Narrative narrative;
+        private ScentSetting scent;
+        private MassageSetting massage;
         private SafetyMode safetyMode = SafetyMode.L1_NORMAL;
         private String reasoning;
         private Instant createdAt;
@@ -163,6 +179,16 @@ public record AmbiencePlan(
             return this;
         }
 
+        public Builder scent(ScentSetting scent) {
+            this.scent = scent;
+            return this;
+        }
+
+        public Builder massage(MassageSetting massage) {
+            this.massage = massage;
+            return this;
+        }
+
         public Builder safetyMode(SafetyMode safetyMode) {
             this.safetyMode = safetyMode;
             return this;
@@ -179,7 +205,7 @@ public record AmbiencePlan(
         }
 
         public AmbiencePlan build() {
-            return new AmbiencePlan(id, music, light, narrative, safetyMode, reasoning, createdAt);
+            return new AmbiencePlan(id, music, light, narrative, scent, massage, safetyMode, reasoning, createdAt);
         }
     }
 }
