@@ -61,4 +61,16 @@ export const vibeApi = {
     )
     return response.json()
   },
+
+  /**
+   * AI 生成环境
+   */
+  async generateEnvironment(description: string): Promise<Environment> {
+    const response = await fetch(`${API_BASE}/environment/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description }),
+    })
+    return response.json()
+  },
 }

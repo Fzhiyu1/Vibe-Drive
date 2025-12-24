@@ -1,15 +1,28 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useVibeStore } from '@/stores/vibeStore'
-import { useDemo } from '@/composables/useDemo'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import EnvironmentPanel from '@/components/environment/EnvironmentPanel.vue'
 import AmbienceVisualizer from '@/components/ambience/AmbienceVisualizer.vue'
 import MusicPlayer from '@/components/music/MusicPlayer.vue'
 import NarrativeDisplay from '@/components/narrative/NarrativeDisplay.vue'
+import ScentDisplay from '@/components/scent/ScentDisplay.vue'
+import MassageDisplay from '@/components/massage/MassageDisplay.vue'
 import ThinkingChain from '@/components/agent/ThinkingChain.vue'
+import ScenarioModal from '@/components/environment/ScenarioModal.vue'
+import type { Environment } from '@/types/api'
 
 const store = useVibeStore()
-const demo = useDemo()
+const showModal = ref(false)
+
+function openModal() {
+  showModal.value = true
+}
+
+function handleSelect(env: Environment) {
+  store.setEnvironment(env)
+  store.analyzeStream()
+}
 </script>
 
 <template>
@@ -20,18 +33,18 @@ const demo = useDemo()
       <!-- 演示控制 -->
       <div class="demo-controls">
         <button
-          v-if="!demo.isRunning.value"
+          v-if="!store.agentRunning"
           class="demo-btn"
-          @click="demo.start"
+          @click="openModal"
         >
           开始演示
         </button>
         <button
           v-else
           class="demo-btn stop"
-          @click="demo.stop"
+          disabled
         >
-          停止演示
+          编排中...
         </button>
       </div>
     </template>
@@ -48,10 +61,25 @@ const demo = useDemo()
       <NarrativeDisplay />
     </template>
 
+    <template #scent>
+      <ScentDisplay />
+    </template>
+
+    <template #massage>
+      <MassageDisplay />
+    </template>
+
     <template #thinking>
       <ThinkingChain />
     </template>
   </AppLayout>
+
+  <!-- 场景选择弹窗 -->
+  <ScenarioModal
+    :visible="showModal"
+    @close="showModal = false"
+    @select="handleSelect"
+  />
 </template>
 
 <style scoped>

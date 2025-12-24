@@ -55,6 +55,7 @@ export function useAnalyzeStream() {
       const decoder = new TextDecoder()
       let buffer = ''
 
+      let currentEventType = ''
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -65,12 +66,15 @@ export function useAnalyzeStream() {
 
         for (const line of lines) {
           if (line.startsWith('event:')) {
-            const eventType = line.slice(6).trim()
-            continue
-          }
-          if (line.startsWith('data:')) {
-            const data = JSON.parse(line.slice(5).trim())
-            handleEvent(data, handlers)
+            currentEventType = line.slice(6).trim()
+          } else if (line.startsWith('data:')) {
+            try {
+              const data = JSON.parse(line.slice(5).trim())
+              handleEventWithType(currentEventType, data, handlers)
+            } catch (e) {
+              console.warn('Failed to parse SSE data:', e)
+            }
+            currentEventType = ''
           }
         }
       }
@@ -83,11 +87,10 @@ export function useAnalyzeStream() {
     }
   }
 
-  function handleEvent(data: Record<string, unknown>, handlers: StreamHandlers) {
-    const type = data.type as string
-    switch (type) {
+  function handleEventWithType(eventType: string, data: Record<string, unknown>, handlers: StreamHandlers) {
+    switch (eventType) {
       case 'token':
-        handlers.onToken?.(data.text as string)
+        handlers.onToken?.(data.content as string)
         break
       case 'tool_start':
         handlers.onToolStart?.(data.toolName as string, data.input)
@@ -100,6 +103,7 @@ export function useAnalyzeStream() {
         )
         break
       case 'complete':
+        // AnalyzeResponse 格式: { action, plan, toolExecutions, processingTimeMs }
         handlers.onComplete?.(
           data.plan as AmbiencePlan,
           data.processingTimeMs as number
@@ -108,6 +112,8 @@ export function useAnalyzeStream() {
       case 'error':
         handlers.onError?.(data.code as string, data.message as string)
         break
+      default:
+        console.log('Unknown SSE event:', eventType, data)
     }
   }
 

@@ -72,7 +72,13 @@ export const useVibeStore = defineStore('vibe', () => {
 
     await stream.connect(sessionId.value, environment.value, {
       onToken: (text) => {
-        addThinkingStep({ type: 'thinking', content: text })
+        // 打字机效果：累积到最后一个 thinking 步骤
+        const lastStep = thinkingChain.value[thinkingChain.value.length - 1]
+        if (lastStep && lastStep.type === 'thinking') {
+          lastStep.content += text
+        } else {
+          addThinkingStep({ type: 'thinking', content: text })
+        }
       },
       onToolStart: (toolName, input) => {
         addThinkingStep({
@@ -100,7 +106,7 @@ export const useVibeStore = defineStore('vibe', () => {
         addThinkingStep({ type: 'error', content: message })
         agentRunning.value = false
       },
-    })
+    }, { debug: true })
   }
 
   async function analyze() {
