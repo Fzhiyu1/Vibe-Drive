@@ -28,11 +28,12 @@ export const useVibeStore = defineStore('vibe', () => {
   const chainExpanded = ref(false)
 
   // ============ 计算属性 ============
+  // 安全模式阈值与后端一致：L1 < 60, L2 60-100, L3 >= 100
   const safetyMode = computed<SafetyMode>(() => {
     if (!environment.value) return 'L1_NORMAL'
     const speed = environment.value.speed
-    if (speed >= 120) return 'L3_SILENT'
-    if (speed >= 80) return 'L2_FOCUS'
+    if (speed >= 100) return 'L3_SILENT'
+    if (speed >= 60) return 'L2_FOCUS'
     return 'L1_NORMAL'
   })
 
@@ -98,7 +99,19 @@ export const useVibeStore = defineStore('vibe', () => {
       },
       onComplete: (newPlan) => {
         plan.value = newPlan
-        addThinkingStep({ type: 'complete', content: '分析完成' })
+
+        // 检测 L3 静默模式（空方案）
+        const isEmptyPlan = !newPlan?.music && !newPlan?.light && !newPlan?.narrative && !newPlan?.scent
+        if (isEmptyPlan && safetyMode.value === 'L3_SILENT') {
+          console.warn('[vibeStore] L3 静默模式：车速 >= 100 km/h，为保障驾驶安全，已跳过氛围推荐')
+          addThinkingStep({
+            type: 'complete',
+            content: '⚠️ L3 静默模式：车速过高，为保障驾驶安全，已跳过氛围推荐'
+          })
+        } else {
+          addThinkingStep({ type: 'complete', content: '分析完成' })
+        }
+
         agentRunning.value = false
       },
       onError: (code, message) => {

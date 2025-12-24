@@ -102,8 +102,11 @@ export interface ZoneSetting {
 
 export interface LightSetting {
   color?: LightColor
+  colorB?: LightColor
   brightness: number
   mode: LightMode
+  speed?: number
+  sharpness?: number
   transitionDuration: number
   zones?: ZoneSetting[]
 }

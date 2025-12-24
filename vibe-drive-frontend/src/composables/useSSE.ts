@@ -93,7 +93,7 @@ export function useAnalyzeStream() {
         handlers.onToken?.(data.content as string)
         break
       case 'tool_start':
-        handlers.onToolStart?.(data.toolName as string, data.input)
+        handlers.onToolStart?.(data.toolName as string, data.arguments)
         break
       case 'tool_end':
         handlers.onToolEnd?.(
