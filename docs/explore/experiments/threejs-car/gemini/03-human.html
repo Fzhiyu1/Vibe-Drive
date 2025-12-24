@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>03 - Human Experiment</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0d1b2a);
+
+        const camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
+        camera.position.set(0, 2, 5);
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(800, 600);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. Human Group
+        const humanGroup = new THREE.Group();
+        scene.add(humanGroup);
+
+        // Materials
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xf5d0c5 });
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3498db });
+        const limbMat = new THREE.MeshStandardMaterial({ color: 0xf5d0c5 });
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
+
+        // Head: Sphere r=0.25, y=1.7
+        const headGeo = new THREE.SphereGeometry(0.25, 32, 32);
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 1.7;
+        humanGroup.add(head);
+
+        // Body: Cylinder h=0.8, r=0.15, y=1.1
+        const bodyGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 32);
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 1.1;
+        humanGroup.add(body);
+
+        // Arms: Cylinder h=0.5, r=0.05, y=1.2
+        // Offset X approx 0.15 (body r) + 0.05 (arm r) + small gap? Let's try 0.22
+        const armGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 32);
+        
+        const leftArm = new THREE.Mesh(armGeo, limbMat);
+        leftArm.position.set(-0.25, 1.2, 0);
+        humanGroup.add(leftArm);
+
+        const rightArm = new THREE.Mesh(armGeo, limbMat);
+        rightArm.position.set(0.25, 1.2, 0);
+        humanGroup.add(rightArm);
+
+        // Legs: Cylinder h=0.6, r=0.08, y=0.3
+        // Offset X approx 0.1 (hips)
+        const legGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 32);
+
+        const leftLeg = new THREE.Mesh(legGeo, legMat);
+        leftLeg.position.set(-0.1, 0.3, 0);
+        humanGroup.add(leftLeg);
+
+        const rightLeg = new THREE.Mesh(legGeo, legMat);
+        rightLeg.position.set(0.1, 0.3, 0);
+        humanGroup.add(rightLeg);
+
+
+        // 3. Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffffff, 1.0);
+        pointLight.position.set(3, 5, 3);
+        scene.add(pointLight);
+
+        // 4. Interaction
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 1, 0);
+        controls.update();
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Slow rotation
+            humanGroup.rotation.y += 0.01;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

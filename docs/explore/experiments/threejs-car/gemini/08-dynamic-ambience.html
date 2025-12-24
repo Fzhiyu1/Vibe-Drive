@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>08 - Dynamic Ambience</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 10;
+            background: rgba(20, 20, 20, 0.8);
+            padding: 15px 25px;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .mode-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 10px 20px;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .mode-btn:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        .mode-btn.active {
+            color: white;
+            background: rgba(255,255,255,0.2);
+            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+        }
+        .icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        #btn-relax .icon { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+        #btn-focus .icon { background: #ffffff; box-shadow: 0 0 5px white; }
+        #btn-energy .icon { background: linear-gradient(135deg, #ff00cc, #333399); }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <button class="mode-btn active" id="btn-relax" onclick="setMode('relax')"><span class="icon"></span>Relax</button>
+        <button class="mode-btn" id="btn-focus" onclick="setMode('focus')"><span class="icon"></span>Focus</button>
+        <button class="mode-btn" id="btn-energy" onclick="setMode('energy')"><span class="icon"></span>Energy</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Configuration ---
+        const MODES = {
+            relax: {
+                colorA: new THREE.Color(0x00aaff), // Cyan
+                colorB: new THREE.Color(0x0044aa), // Deep Blue
+                speed: 0.5,
+                sharpness: 1.0, // Smooth sine
+                noiseStr: 0.2,
+                particleSpeed: 0.2,
+                particleColor: new THREE.Color(0x00aaff)
+            },
+            focus: {
+                colorA: new THREE.Color(0xffffff), // White
+                colorB: new THREE.Color(0xeeeeee), // Off-white
+                speed: 0.05, // Very slow drift
+                sharpness: 0.5,
+                noiseStr: 0.0,
+                particleSpeed: 0.05,
+                particleColor: new THREE.Color(0xffffff)
+            },
+            energy: {
+                colorA: new THREE.Color(0xff0044), // Red
+                colorB: new THREE.Color(0xaa00ff), // Purple
+                speed: 4.0,
+                sharpness: 8.0, // Sharp pulses
+                noiseStr: 0.0,
+                particleSpeed: 1.5,
+                particleColor: new THREE.Color(0xff0044)
+            }
+        };
+
+        let currentMode = 'relax';
+        // Current state values for lerping
+        const currentState = {
+            colorA: new THREE.Color(MODES.relax.colorA),
+            colorB: new THREE.Color(MODES.relax.colorB),
+            speed: MODES.relax.speed,
+            sharpness: MODES.relax.sharpness,
+            noiseStr: MODES.relax.noiseStr,
+            particleSpeed: MODES.relax.particleSpeed,
+            particleColor: new THREE.Color(MODES.relax.particleColor)
+        };
+
+        window.setMode = (modeName) => {
+            currentMode = modeName;
+            
+            // UI Update
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${modeName}`).classList.add('active');
+        };
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.FogExp2(0x050505, 0.1); // Add fog for atmosphere
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.1, 0.3); // Driver's POV approx
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0.8, -1.5);
+        controls.enablePan = false;
+        controls.maxPolarAngle = Math.PI / 1.9;
+        controls.minDistance = 0.1;
+        controls.maxDistance = 5;
+
+        // --- Assets & Materials ---
+        
+        // Base materials
+        const darkMat = new THREE.MeshStandardMaterial({ 
+            color: 0x111111, 
+            roughness: 0.7,
+            metalness: 0.2
+        });
+        const seatMat = new THREE.MeshStandardMaterial({ 
+            color: 0x222222, 
+            roughness: 0.9,
+            normalScale: new THREE.Vector2(0.5, 0.5) 
+            // In a real app we'd add leather normal map here
+        });
+        const screenMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+        // --- Car Interior Geometry ---
+        
+        // 1. Dashboard
+        const dashGeo = new THREE.BoxGeometry(2.2, 0.6, 1.0);
+        const dash = new THREE.Mesh(dashGeo, darkMat);
+        dash.position.set(0, 0.7, -1.0);
+        scene.add(dash);
+
+        // 2. Screen (with simple glowing content)
+        const screenGeo = new THREE.PlaneGeometry(0.8, 0.3);
+        const screenGroup = new THREE.Group();
+        const screenMesh = new THREE.Mesh(screenGeo, screenMat);
+        screenGroup.add(screenMesh);
+        
+        // Add a "content" plane on top
+        const contentGeo = new THREE.PlaneGeometry(0.76, 0.26);
+        const contentMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        const contentMesh = new THREE.Mesh(contentGeo, contentMat);
+        contentMesh.position.z = 0.01;
+        screenGroup.add(contentMesh);
+
+        screenGroup.position.set(0, 1.05, -0.65);
+        screenGroup.rotation.x = -0.3;
+        scene.add(screenGroup);
+
+        // 3. Steering Wheel
+        const wheelGroup = new THREE.Group();
+        const torus = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.02, 16, 50), darkMat);
+        wheelGroup.add(torus);
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.04, 0.02), darkMat);
+        wheelGroup.add(spoke);
+
+        // 方向杆（steering column）
+        const columnGeo = new THREE.CylinderGeometry(0.025, 0.03, 0.4, 16);
+        const column = new THREE.Mesh(columnGeo, darkMat);
+        column.rotation.x = Math.PI / 2; // 横躺
+        column.position.z = -0.2; // 往后延伸
+        wheelGroup.add(column);
+
+        wheelGroup.position.set(-0.45, 0.85, -0.2);
+        wheelGroup.rotation.x = -0.3;
+        scene.add(wheelGroup);
+
+        // 4. Seats
+        function createSeat(x) {
+            const group = new THREE.Group();
+            const base = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.15, 0.6), seatMat);
+            const back = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.15), seatMat);
+            back.position.set(0, 0.4, 0.25);
+            back.rotation.x = -0.1;
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), seatMat);
+            head.position.set(0, 0.85, 0.2);
+            
+            group.add(base, back, head);
+            group.position.set(x, 0.3, 0.2);
+            return group;
+        }
+        scene.add(createSeat(-0.45));
+        scene.add(createSeat(0.45));
+
+        // 5. Floor/Roof approximation
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), darkMat);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+        
+        // Roof pillars (A-Pillars)
+        const pillarGeo = new THREE.CylinderGeometry(0.04, 0.06, 1.5, 8);
+        const lPillar = new THREE.Mesh(pillarGeo, darkMat);
+        lPillar.position.set(-0.8, 1.5, -0.5);
+        lPillar.rotation.z = 0.3;
+        lPillar.rotation.x = -0.5;
+        scene.add(lPillar);
+        
+        const rPillar = new THREE.Mesh(pillarGeo, darkMat);
+        rPillar.position.set(0.8, 1.5, -0.5);
+        rPillar.rotation.z = -0.3;
+        rPillar.rotation.x = -0.5;
+        scene.add(rPillar);
+
+
+        // --- Dynamic Ambience System ---
+
+        // Custom Shader for Light Strips
+        const lightStripVertexShader = `
+            varying vec2 vUv;
+            varying vec3 vPos;
+            void main() {
+                vUv = uv;
+                vPos = position;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        const lightStripFragmentShader = `
+            uniform float uTime;
+            uniform vec3 uColorA;
+            uniform vec3 uColorB;
+            uniform float uSpeed;
+            uniform float uSharpness;
+            uniform float uDirection; // 0 for X, 1 for Z
+            
+            varying vec2 vUv;
+            varying vec3 vPos;
+
+            void main() {
+                // Determine wave coordinate based on direction
+                // If uDirection is 0 (Dash), we use vUv.x
+                // If uDirection is 1 (Door), we use vUv.x (assuming geometry is mapped nicely) or just vPos
+                
+                // Let's use vUv.x for everything if we ensure UVs run along the strip
+                float coord = vUv.x;
+                
+                // Create a moving wave
+                float phase = uTime * uSpeed;
+                float wave = sin(coord * 6.28 + phase); // Basic sine
+                
+                // Sharpen the wave for "Energy" mode
+                wave = (wave + 1.0) * 0.5; // 0..1
+                wave = pow(wave, uSharpness);
+                
+                // Mix colors based on wave
+                vec3 finalColor = mix(uColorA, uColorB, wave);
+                
+                // Add an edge glow
+                float strength = 1.0;
+                
+                gl_FragColor = vec4(finalColor * strength, 1.0);
+            }
+        `;
+
+        const ambienceUniforms = {
+            uTime: { value: 0 },
+            uColorA: { value: new THREE.Color() },
+            uColorB: { value: new THREE.Color() },
+            uSpeed: { value: 1.0 },
+            uSharpness: { value: 1.0 },
+            uDirection: { value: 0.0 }
+        };
+
+        const stripMat = new THREE.ShaderMaterial({
+            vertexShader: lightStripVertexShader,
+            fragmentShader: lightStripFragmentShader,
+            uniforms: ambienceUniforms,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        // Create Strips
+        const lightsGroup = new THREE.Group();
+        scene.add(lightsGroup);
+
+        // Helper
+        function createStrip(width, height, depth, pos, rot) {
+            const geo = new THREE.BoxGeometry(width, height, depth);
+            const mesh = new THREE.Mesh(geo, stripMat);
+            if(pos) mesh.position.copy(pos);
+            if(rot) mesh.rotation.set(rot.x, rot.y, rot.z);
+            lightsGroup.add(mesh);
+            return mesh;
+        }
+
+        // Dash Strip (runs along X)
+        // Ensure UVs map X to 0..1
+        const dashStrip = createStrip(2.2, 0.02, 0.02, new THREE.Vector3(0, 0.72, -0.49), {x:0, y:0, z:0});
+        
+        // Door Strips (run along Z)
+        // We need to rotate UVs or Geometry for Z strips so UV.x runs along Z?
+        // BoxGeometry UVs: faces are mapped 0..1. Side faces: width is Z.
+        // If we make a box 0.02 x 0.02 x 2.0. The side face (along Z) has UV.x along Z? 
+        // Let's check. BoxGeometry maps UVs per face. 
+        // For a box stretched on Z, the side faces will map length to U. 
+        // We just need to make sure we look at the right face or just use world position in shader?
+        // Actually, let's just make separate materials or use an attribute if we want perfection.
+        // For simplicity, let's create a separate uniform clone for Z-strips or just accept that 
+        // the wave might look different if UVs aren't perfect.
+        // Trick: Rotate the mesh 90 degrees so X aligns with Z, but visually it's same.
+        
+        const lDoorStrip = createStrip(2.0, 0.02, 0.02, new THREE.Vector3(-1.0, 0.8, 0.5), {x:0, y:Math.PI/2, z:0});
+        const rDoorStrip = createStrip(2.0, 0.02, 0.02, new THREE.Vector3(1.0, 0.8, 0.5), {x:0, y:Math.PI/2, z:0});
+
+        // Floor Ambient (Footwell)
+        const lFoot = createStrip(0.5, 0.01, 0.5, new THREE.Vector3(-0.45, 0.05, -0.6), {x:0, y:0, z:0});
+        const rFoot = createStrip(0.5, 0.01, 0.5, new THREE.Vector3(0.45, 0.05, -0.6), {x:0, y:0, z:0});
+
+        // --- Particle System (Atmosphere) ---
+        const particleCount = 200;
+        const particleGeo = new THREE.BufferGeometry();
+        const posArray = new Float32Array(particleCount * 3);
+        const speedArray = new Float32Array(particleCount); // Random speed variance per particle
+
+        for(let i=0; i<particleCount * 3; i+=3) {
+            // Random box around car
+            posArray[i] = (Math.random() - 0.5) * 4;     // x
+            posArray[i+1] = (Math.random() - 0.5) * 2 + 1; // y
+            posArray[i+2] = (Math.random() - 0.5) * 4;     // z
+            
+            speedArray[i/3] = Math.random();
+        }
+
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        particleGeo.setAttribute('aSpeed', new THREE.BufferAttribute(speedArray, 1));
+
+        const particleUniforms = {
+            uTime: { value: 0 },
+            uColor: { value: new THREE.Color(0xffffff) },
+            uGlobalSpeed: { value: 1.0 },
+            uSize: { value: 4.0 }
+        };
+
+        const particleMat = new THREE.ShaderMaterial({
+            vertexShader: `
+                uniform float uTime;
+                uniform float uGlobalSpeed;
+                uniform float uSize;
+                attribute float aSpeed;
+                varying float vAlpha;
+                
+                void main() {
+                    vec3 pos = position;
+                    
+                    // Simple movement: drift up and back
+                    float t = uTime * uGlobalSpeed * (0.5 + aSpeed);
+                    
+                    pos.y += sin(t * 0.5 + pos.x) * 0.1;
+                    pos.x += cos(t * 0.3 + pos.z) * 0.1;
+                    
+                    // Loop positions (wrap around)
+                    // (Not strictly implementing seamless wrap for simplicity, just wobble)
+                    
+                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    gl_PointSize = uSize * (10.0 / -mvPosition.z);
+                    gl_Position = projectionMatrix * mvPosition;
+                    
+                    vAlpha = 0.5 + 0.5 * sin(t + pos.x * 10.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 uColor;
+                varying float vAlpha;
+                void main() {
+                    // Circle shape
+                    vec2 coord = gl_PointCoord - vec2(0.5);
+                    if(length(coord) > 0.5) discard;
+                    
+                    gl_FragColor = vec4(uColor, vAlpha * 0.6);
+                }
+            `,
+            uniforms: particleUniforms,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const particleSystem = new THREE.Points(particleGeo, particleMat);
+        scene.add(particleSystem);
+
+
+        // --- 黄昏光照系统 ---
+        const ambientLight = new THREE.AmbientLight(0xffeedd, 0.4);
+        scene.add(ambientLight);
+
+        // 夕阳方向光
+        const sunLight = new THREE.DirectionalLight(0xff8844, 0.6);
+        sunLight.position.set(-3, 2, -5);
+        scene.add(sunLight);
+
+        // 补光（模拟天空散射）
+        const fillLight = new THREE.DirectionalLight(0x8888ff, 0.2);
+        fillLight.position.set(2, 3, 2);
+        scene.add(fillLight);
+
+        // Dynamic Point Light inside car (linked to mood)
+        const interiorLight = new THREE.PointLight(0xffffee, 0.5, 3);
+        interiorLight.position.set(0, 1.5, 0);
+        scene.add(interiorLight);
+
+        // --- Animation Loop ---
+        const clock = new THREE.Clock();
+
+        function lerp(start, end, alpha) {
+            return start + (end - start) * alpha;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const dt = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            // 方向盘左右转动
+            wheelGroup.rotation.z = Math.sin(time * 0.8) * 0.3;
+
+            // 1. Update State (Transition)
+            const target = MODES[currentMode];
+            const lerpFactor = dt * 2.0; // Transition speed
+
+            currentState.colorA.lerp(target.colorA, lerpFactor);
+            currentState.colorB.lerp(target.colorB, lerpFactor);
+            currentState.particleColor.lerp(target.particleColor, lerpFactor);
+            
+            currentState.speed = lerp(currentState.speed, target.speed, lerpFactor);
+            currentState.sharpness = lerp(currentState.sharpness, target.sharpness, lerpFactor);
+            currentState.noiseStr = lerp(currentState.noiseStr, target.noiseStr, lerpFactor);
+            currentState.particleSpeed = lerp(currentState.particleSpeed, target.particleSpeed, lerpFactor);
+
+            // 2. Update Uniforms
+            ambienceUniforms.uTime.value = time;
+            ambienceUniforms.uColorA.value.copy(currentState.colorA);
+            ambienceUniforms.uColorB.value.copy(currentState.colorB);
+            ambienceUniforms.uSpeed.value = currentState.speed;
+            ambienceUniforms.uSharpness.value = currentState.sharpness;
+
+            particleUniforms.uTime.value = time;
+            particleUniforms.uColor.value.copy(currentState.particleColor);
+            particleUniforms.uGlobalSpeed.value = currentState.particleSpeed;
+
+            // 3. Update Scene Lighting to match mood
+            interiorLight.color.copy(currentState.colorA);
+            interiorLight.intensity = 0.2 + (Math.sin(time) * 0.1); // subtle breathe
+            
+            // Screen content pulsing
+            contentMat.color.copy(currentState.colorB);
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

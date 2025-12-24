@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>01 - Sphere Experiment</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+
+        // Camera: z = 5
+        const camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
+        camera.position.z = 5;
+
+        // Renderer: 800x600
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(800, 600);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. Sphere Setup
+        // Radius: 1, Segments: 32x32
+        const geometry = new THREE.SphereGeometry(1, 32, 32);
+        // Color: #4a90d9, Material: MeshStandardMaterial
+        const material = new THREE.MeshStandardMaterial({ 
+            color: 0x4a90d9,
+            roughness: 0.5,
+            metalness: 0.1 
+        });
+        const sphere = new THREE.Mesh(geometry, material);
+        scene.add(sphere);
+
+        // 3. Lighting
+        // Ambient: intensity 0.4
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        // Point Light: intensity 1.0, position (5, 5, 5)
+        const pointLight = new THREE.PointLight(0xffffff, 1.0);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        // 4. Interaction
+        // OrbitControls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Auto-rotation: Y axis, 0.01 rad/frame
+            sphere.rotation.y += 0.01;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

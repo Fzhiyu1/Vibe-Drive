@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>04 - Fence Experiment</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb);
+
+        const camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
+        camera.position.set(0, 2, 6);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(800, 600);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. Objects
+
+        // Ground: 10x10, Grass #228b22
+        const groundGeo = new THREE.PlaneGeometry(10, 10);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x228b22 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Fence Group
+        const fenceGroup = new THREE.Group();
+        scene.add(fenceGroup);
+
+        const woodMat = new THREE.MeshStandardMaterial({ 
+            color: 0x8b4513,
+            roughness: 0.8,
+            metalness: 0.0
+        });
+
+        // Vertical Boards: 5 count, 0.15 x 2.0 x 0.1, spacing 0.8
+        const vBoardGeo = new THREE.BoxGeometry(0.15, 2.0, 0.1);
+        
+        // Centering: 5 boards. Indices -2, -1, 0, 1, 2.
+        for (let i = -2; i <= 2; i++) {
+            const vBoard = new THREE.Mesh(vBoardGeo, woodMat);
+            vBoard.position.set(i * 0.8, 1.0, 0); // Y=1.0 because height is 2.0, so center is 1.0
+            fenceGroup.add(vBoard);
+        }
+
+        // Horizontal Beams: 2 count, 4.0 x 0.15 x 0.1, Y=0.5 & 1.5
+        const hBeamGeo = new THREE.BoxGeometry(4.0, 0.15, 0.1);
+
+        const beam1 = new THREE.Mesh(hBeamGeo, woodMat);
+        beam1.position.set(0, 0.5, 0.05); // Slightly offset Z to avoid Z-fighting or look attached
+        // Actually req implies structure. Let's put beams slightly behind or in front? 
+        // Typically rails are attached to posts. Let's assume posts are at Z=0. 
+        // If posts are 0.1 deep (Z from -0.05 to 0.05). 
+        // Let's put beams at Z=0.1 (front) or -0.1 (back). Let's do Front.
+        beam1.position.z = 0.1; 
+        fenceGroup.add(beam1);
+
+        const beam2 = new THREE.Mesh(hBeamGeo, woodMat);
+        beam2.position.set(0, 1.5, 0.1);
+        fenceGroup.add(beam2);
+
+        // 3. Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Warm white? 0xffffff is white. Warm is maybe 0xfff0e0. Using white as generic.
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight.position.set(5, 10, 5);
+        scene.add(dirLight);
+
+        // 4. Interaction
+        const controls = new OrbitControls(camera, renderer.domElement);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

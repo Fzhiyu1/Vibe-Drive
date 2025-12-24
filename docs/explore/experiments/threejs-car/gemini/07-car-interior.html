@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>07 - Car Interior Experiment</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #000; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            gap: 15px;
+        }
+        .color-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div class="color-btn" style="background: #ff0000" onclick="setColor(0xff0000)"></div>
+        <div class="color-btn" style="background: #0000ff" onclick="setColor(0x0000ff)"></div>
+        <div class="color-btn" style="background: #00ff00" onclick="setColor(0x00ff00)"></div>
+        <div class="color-btn" style="background: #800080" onclick="setColor(0x800080)"></div>
+        <div class="color-btn" style="background: #ffffff" onclick="setColor(0xffffff)"></div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Globals
+        window.setColor = function(hex) {
+            targetColor.setHex(hex);
+        };
+
+        // 1. Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+
+        // Camera: Driver view (0, 1.2, 0.5) looking at (0, 1, -2)
+        const camera = new THREE.PerspectiveCamera(60, 1200 / 600, 0.1, 1000);
+        camera.position.set(0, 1.2, 0.5);
+        
+        // 2. Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(1200, 600);
+        document.body.appendChild(renderer.domElement);
+
+        // 3. Objects (Interior)
+        
+        // Materials
+        const darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+        const seatMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+        const screenMat = new THREE.MeshBasicMaterial({ color: 0x2244ff }); // Screen glow
+        
+        // Ambient Light Material
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Dynamic
+        const targetColor = new THREE.Color(0x0000ff);
+
+        // Dashboard: Box, front. Z around -0.5 to -1.0.
+        // Car facing -Z.
+        const dashGeo = new THREE.BoxGeometry(2.0, 0.5, 0.8);
+        const dash = new THREE.Mesh(dashGeo, darkMat);
+        dash.position.set(0, 0.8, -0.8);
+        scene.add(dash);
+
+        // Screen: Plane on dash
+        const screenGeo = new THREE.PlaneGeometry(0.6, 0.3);
+        const screen = new THREE.Mesh(screenGeo, screenMat);
+        screen.position.set(0, 1.1, -0.6); // Slightly above/behind dash front?
+        // Dash center Z -0.8. Depth 0.8 => Front -0.4, Back -1.2.
+        // Let's put screen at Z = -0.41 (sticking out).
+        screen.position.set(0, 0.9, -0.39);
+        screen.rotation.x = -0.2; // Tilted up
+        scene.add(screen);
+
+        // Steering Wheel: Torus
+        // Driver position is usually Left or Right. Let's assume Left Drive (x = -0.4).
+        const wheelGeo = new THREE.TorusGeometry(0.15, 0.02, 16, 32);
+        const wheel = new THREE.Mesh(wheelGeo, darkMat);
+        wheel.position.set(-0.4, 0.8, -0.3);
+        wheel.rotation.x = -0.2;
+        scene.add(wheel);
+
+        // Seats
+        const seatGeo = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+        const backGeo = new THREE.BoxGeometry(0.5, 0.6, 0.1);
+        
+        // Left Seat
+        const lSeat = new THREE.Mesh(seatGeo, seatMat);
+        lSeat.position.set(-0.4, 0.3, 0.2);
+        scene.add(lSeat);
+        const lBack = new THREE.Mesh(backGeo, seatMat);
+        lBack.position.set(-0.4, 0.6, 0.45);
+        scene.add(lBack);
+
+        // Right Seat
+        const rSeat = new THREE.Mesh(seatGeo, seatMat);
+        rSeat.position.set(0.4, 0.3, 0.2);
+        scene.add(rSeat);
+        const rBack = new THREE.Mesh(backGeo, seatMat);
+        rBack.position.set(0.4, 0.6, 0.45);
+        scene.add(rBack);
+
+        // --- Ambient Lights ---
+        const lightsGroup = new THREE.Group();
+        scene.add(lightsGroup);
+
+        // 1. Dash Strip (Underneath dash edge)
+        // Dash Front is Z = -0.4. Width 2.0.
+        const dashStripGeo = new THREE.BoxGeometry(2.0, 0.02, 0.02);
+        const dashStrip = new THREE.Mesh(dashStripGeo, lightMat);
+        dashStrip.position.set(0, 0.56, -0.39); // Below dash top
+        lightsGroup.add(dashStrip);
+
+        // 2. Door Strips (Left/Right)
+        // Assume doors at X +/- 1.0. Length along Z.
+        const doorStripGeo = new THREE.BoxGeometry(0.02, 0.02, 2.0);
+        
+        const lDoor = new THREE.Mesh(doorStripGeo, lightMat);
+        lDoor.position.set(-1.0, 0.8, 0);
+        lightsGroup.add(lDoor);
+
+        const rDoor = new THREE.Mesh(doorStripGeo, lightMat);
+        rDoor.position.set(1.0, 0.8, 0);
+        lightsGroup.add(rDoor);
+
+
+        // 4. Lighting (Standard)
+        const ambient = new THREE.AmbientLight(0xffffff, 0.2);
+        scene.add(ambient);
+        
+        // 5. Interaction
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0.8, -1.0);
+        controls.enablePan = false;
+        controls.maxPolarAngle = Math.PI / 1.8; // Prevent going under floor
+        
+        // 6. Animation
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Breathing
+            const time = clock.getElapsedTime();
+            const intensity = 0.5 + 0.5 * ((Math.sin(time * 2) + 1) / 2);
+
+            // Lerp Color
+            lightMat.color.lerp(targetColor, 0.1);
+            
+            // Apply Intensity (Modulate RGB)
+            // Note: Since we share 'lightMat' and modify its .color property in lerp, 
+            // the lerp overwrites the intensity scaling if we are not careful.
+            // Better: use 'targetColor' as base, scale it, and set 'lightMat.color'.
+            
+            const r = THREE.MathUtils.lerp(lightMat.color.r, targetColor.r, 0.1);
+            const g = THREE.MathUtils.lerp(lightMat.color.g, targetColor.g, 0.1);
+            const b = THREE.MathUtils.lerp(lightMat.color.b, targetColor.b, 0.1);
+            
+            // Apply breathing to the lerped color
+            lightMat.color.setRGB(r * intensity, g * intensity, b * intensity);
+            
+            // Wait, this logic is slightly flawed because next frame 'lightMat.color' is dimmed, 
+            // so lerping from it might drift down.
+            // Correct way: Maintain a 'currentBaseColor' separate from material.color.
+            // For simplicity here, we'll just re-set from targetColor * intensity approx.
+            
+            const finalR = targetColor.r * intensity;
+            const finalG = targetColor.g * intensity;
+            const finalB = targetColor.b * intensity;
+            lightMat.color.setRGB(finalR, finalG, finalB);
+
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

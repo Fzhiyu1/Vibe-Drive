@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>06 - Car Exterior Experiment</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xe0e0e0);
+
+        const camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
+        camera.position.set(5, 3, 5);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(800, 600);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // 2. Objects
+
+        // Ground: 20x20, #cccccc
+        const planeGeo = new THREE.PlaneGeometry(20, 20);
+        const planeMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+        const ground = new THREE.Mesh(planeGeo, planeMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Car Group
+        const car = new THREE.Group();
+        scene.add(car);
+
+        // Materials
+        const bodyMat = new THREE.MeshStandardMaterial({ 
+            color: 0x2c3e50, 
+            metalness: 0.6,
+            roughness: 0.4
+        });
+        const wheelMat = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a1a, 
+            roughness: 0.9 
+        });
+        const windowMat = new THREE.MeshBasicMaterial({ 
+            color: 0x87ceeb, 
+            transparent: true, 
+            opacity: 0.6 
+        });
+        const lightMat = new THREE.MeshStandardMaterial({ 
+            color: 0xffff00,
+            emissive: 0xffff00,
+            emissiveIntensity: 0.5
+        });
+
+        // Dimensions
+        // Wheels r=0.4. Floor is Y=0.
+        // Wheel Center Y = 0.4.
+        // Body (Height 1) sits on axles? Let's say Body Bottom = 0.4.
+        // Body Center Y = 0.4 + 0.5 = 0.9.
+        
+        // Body: 4 x 1 x 2
+        const bodyGeo = new THREE.BoxGeometry(4, 1, 2);
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 0.9;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        car.add(body);
+
+        // Roof: 2 x 0.8 x 1.8
+        // Sits on Body (Top Y = 0.9 + 0.5 = 1.4).
+        // Roof Center Y = 1.4 + 0.4 = 1.8.
+        const roofGeo = new THREE.BoxGeometry(2, 0.8, 1.8);
+        const roof = new THREE.Mesh(roofGeo, bodyMat);
+        roof.position.y = 1.8;
+        roof.castShadow = true;
+        roof.receiveShadow = true;
+        car.add(roof);
+
+        // Wheels: Cylinder r=0.4, h=0.3
+        // Positions: X +/- 1.2, Z +/- 1.0 (Body width is 2, so edge is 1. Wheel center at 1? half sticking out? Let's do 1.0)
+        const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 32);
+        
+        const wheelPositions = [
+            { x: -1.2, z: -1.0 },
+            { x: 1.2, z: -1.0 },
+            { x: -1.2, z: 1.0 },
+            { x: 1.2, z: 1.0 }
+        ];
+
+        wheelPositions.forEach(pos => {
+            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+            wheel.rotation.x = Math.PI / 2; // Rotate to roll
+            wheel.position.set(pos.x, 0.4, pos.z);
+            wheel.castShadow = true;
+            car.add(wheel);
+        });
+
+        // Windows: 1.8 x 0.6 x 0.05
+        // Side windows on Roof sides?
+        // Roof Z width is 1.8. Side faces are at Z +/- 0.9.
+        // Window Dim 1.8 matches Roof Length? No Roof Length is 2. 
+        // 1.8 matches Roof Width Z?
+        // If 1.8 is Length, it fits on Side (X).
+        // Let's place on Sides (Z +/- 0.91).
+        const winGeo = new THREE.BoxGeometry(1.8, 0.6, 0.05);
+        
+        const leftWin = new THREE.Mesh(winGeo, windowMat);
+        leftWin.position.set(0, 1.8, 0.91); // Roof Center Y 1.8
+        car.add(leftWin);
+
+        const rightWin = new THREE.Mesh(winGeo, windowMat);
+        rightWin.position.set(0, 1.8, -0.91);
+        car.add(rightWin);
+
+        // Headlights: Sphere r=0.15
+        // Front of Body (X=2). Y=0.9. Z +/- 0.6.
+        const lightGeo = new THREE.SphereGeometry(0.15, 16, 16);
+        
+        const leftLight = new THREE.Mesh(lightGeo, lightMat);
+        leftLight.position.set(2.0, 0.9, 0.6);
+        car.add(leftLight);
+
+        const rightLight = new THREE.Mesh(lightGeo, lightMat);
+        rightLight.position.set(2.0, 0.9, -0.6);
+        car.add(rightLight);
+
+        // 3. Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // 4. Interaction
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Auto Rotate Car
+            car.rotation.y += 0.005;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

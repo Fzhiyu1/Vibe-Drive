@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试08：动态氛围场景</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        canvas { display: block; }
+
+        /* 模式选择UI */
+        .mode-panel {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 25px;
+            border-radius: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mode-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .mode-btn.relax {
+            background: linear-gradient(135deg, #ff8844, #ffaa66);
+            color: #fff;
+        }
+        .mode-btn.relax::before {
+            background: linear-gradient(135deg, #ffaa66, #ffcc88);
+        }
+
+        .mode-btn.focus {
+            background: linear-gradient(135deg, #0088cc, #00aaff);
+            color: #fff;
+        }
+        .mode-btn.focus::before {
+            background: linear-gradient(135deg, #00aaff, #44ccff);
+        }
+
+        .mode-btn.energy {
+            background: linear-gradient(135deg, #ff4488, #aa44ff);
+            color: #fff;
+        }
+        .mode-btn.energy::before {
+            background: linear-gradient(135deg, #ff66aa, #cc66ff);
+        }
+
+        .mode-btn:hover::before {
+            opacity: 1;
+        }
+
+        .mode-btn.active {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        /* 模式信息显示 */
+        .mode-info {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 18px;
+            font-weight: 300;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .mode-info.visible {
+            opacity: 1;
+        }
+
+        /* 过渡遮罩 */
+        .transition-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle, transparent 0%, rgba(0,0,0,0.3) 100%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 50;
+        }
+
+        .transition-overlay.active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="mode-info" id="modeInfo">放松模式</div>
+    <div class="transition-overlay" id="transitionOverlay"></div>
+
+    <div class="mode-panel">
+        <button class="mode-btn relax active" data-mode="relax">🌙 放松</button>
+        <button class="mode-btn focus" data-mode="focus">🎯 专注</button>
+        <button class="mode-btn energy" data-mode="energy">⚡ 活力</button>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ==================== 氛围模式配置 ====================
+        const MODES = {
+            relax: {
+                name: '放松模式',
+                primaryColor: new THREE.Color(0xff8844),
+                secondaryColor: new THREE.Color(0xffaa66),
+                breathSpeed: 0.015,        // 缓慢呼吸
+                breathRange: [0.3, 1.0],
+                particleCount: 50,
+                particleSpeed: 0.002,
+                particleSize: 0.03,
+                particleOpacity: 0.6,
+                screenColor: 0x442200,
+                ambientIntensity: 0.05
+            },
+            focus: {
+                name: '专注模式',
+                primaryColor: new THREE.Color(0x00aaff),
+                secondaryColor: new THREE.Color(0x0066aa),
+                breathSpeed: 0.008,        // 稳定微弱脉冲
+                breathRange: [0.7, 1.0],
+                particleCount: 10,
+                particleSpeed: 0.0005,
+                particleSize: 0.015,
+                particleOpacity: 0.3,
+                screenColor: 0x003366,
+                ambientIntensity: 0.08
+            },
+            energy: {
+                name: '活力模式',
+                primaryColor: new THREE.Color(0xff4488),
+                secondaryColor: new THREE.Color(0xaa44ff),
+                breathSpeed: 0.05,         // 快速脉冲
+                breathRange: [0.4, 1.0],
+                particleCount: 100,
+                particleSpeed: 0.008,
+                particleSize: 0.04,
+                particleOpacity: 0.8,
+                screenColor: 0x440044,
+                ambientIntensity: 0.1,
+                colorCycle: true           // 颜色循环
+            }
+        };
+
+        // ==================== 全局状态 ====================
+        let currentMode = 'relax';
+        let targetMode = 'relax';
+        let transitionProgress = 1;
+        const TRANSITION_SPEED = 0.02;
+
+        // 当前插值状态
+        const currentState = {
+            primaryColor: MODES.relax.primaryColor.clone(),
+            secondaryColor: MODES.relax.secondaryColor.clone(),
+            breathSpeed: MODES.relax.breathSpeed,
+            breathRange: [...MODES.relax.breathRange],
+            particleSpeed: MODES.relax.particleSpeed,
+            particleOpacity: MODES.relax.particleOpacity,
+            screenColor: new THREE.Color(MODES.relax.screenColor),
+            ambientIntensity: MODES.relax.ambientIntensity
+        };
+
+        // ==================== 场景设置 ====================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.2, 0.5);
+        camera.lookAt(0, 1, -2);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        // ==================== 材质定义 ====================
+        const ambientLightMaterials = [];
+
+        const interiorMaterial = new THREE.MeshStandardMaterial({
+            color: 0x1a1a1a,
+            roughness: 0.9
+        });
+        const dashMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2a2a2a,
+            roughness: 0.7
+        });
+        const seatMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            roughness: 0.6
+        });
+
+        // ==================== 创建氛围灯带 ====================
+        function createAmbientStrip(width, height, position, rotation = [0, 0, 0]) {
+            const geometry = new THREE.PlaneGeometry(width, height);
+            const material = new THREE.MeshBasicMaterial({
+                color: currentState.primaryColor.clone(),
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 1
+            });
+            ambientLightMaterials.push(material);
+            const strip = new THREE.Mesh(geometry, material);
+            strip.position.set(...position);
+            strip.rotation.set(...rotation);
+            return strip;
+        }
+
+        // ==================== 车内场景构建 ====================
+        // 车厢外壳
+        const cabinGeo = new THREE.BoxGeometry(3, 1.5, 4);
+        const cabin = new THREE.Mesh(cabinGeo, interiorMaterial);
+        cabin.position.set(0, 0.75, -1);
+        scene.add(cabin);
+
+        // 仪表台
+        const dashGeo = new THREE.BoxGeometry(2.8, 0.4, 0.6);
+        const dashboard = new THREE.Mesh(dashGeo, dashMaterial);
+        dashboard.position.set(0, 0.9, -2.5);
+        scene.add(dashboard);
+
+        // 中控屏
+        const screenGeo = new THREE.PlaneGeometry(0.6, 0.4);
+        const screenMaterial = new THREE.MeshBasicMaterial({
+            color: currentState.screenColor.clone()
+        });
+        const screen = new THREE.Mesh(screenGeo, screenMaterial);
+        screen.position.set(0.3, 1.1, -2.19);
+        scene.add(screen);
+
+        // 方向盘
+        const wheelGeo = new THREE.TorusGeometry(0.18, 0.025, 16, 32);
+        const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        const steeringWheel = new THREE.Mesh(wheelGeo, wheelMaterial);
+        steeringWheel.position.set(-0.4, 1.0, -1.8);
+        steeringWheel.rotation.x = Math.PI / 6;
+        scene.add(steeringWheel);
+
+        // 座椅
+        const seatGeo = new THREE.BoxGeometry(0.5, 0.6, 0.5);
+        const leftSeat = new THREE.Mesh(seatGeo, seatMaterial);
+        leftSeat.position.set(-0.5, 0.5, 0);
+        scene.add(leftSeat);
+
+        const rightSeat = new THREE.Mesh(seatGeo, seatMaterial);
+        rightSeat.position.set(0.5, 0.5, 0);
+        scene.add(rightSeat);
+
+        // 座椅靠背
+        const backGeo = new THREE.BoxGeometry(0.5, 0.7, 0.15);
+        const leftBack = new THREE.Mesh(backGeo, seatMaterial);
+        leftBack.position.set(-0.5, 0.95, -0.2);
+        scene.add(leftBack);
+
+        const rightBack = new THREE.Mesh(backGeo, seatMaterial);
+        rightBack.position.set(0.5, 0.95, -0.2);
+        scene.add(rightBack);
+
+        // 氛围灯带
+        scene.add(createAmbientStrip(2.5, 0.05, [0, 0.7, -2.2]));           // 仪表台下沿
+        scene.add(createAmbientStrip(0.05, 1.2, [-1.4, 0.8, -1], [0, Math.PI / 2, 0]));  // 左车门
+        scene.add(createAmbientStrip(0.05, 1.2, [1.4, 0.8, -1], [0, Math.PI / 2, 0]));   // 右车门
+        scene.add(createAmbientStrip(2.5, 0.03, [0, 1.45, -1]));            // 顶部
+        scene.add(createAmbientStrip(0.8, 0.03, [0, 0.55, -2.3]));          // 中控台
+
+        // ==================== 黄昏光照系统 ====================
+        // 环境光（暖色调）
+        const ambientLight = new THREE.AmbientLight(0xffeedd, 0.4);
+        scene.add(ambientLight);
+
+        // 夕阳方向光
+        const sunLight = new THREE.DirectionalLight(0xff8844, 0.6);
+        sunLight.position.set(-3, 2, -5);
+        scene.add(sunLight);
+
+        // 补光（模拟天空散射）
+        const fillLight = new THREE.DirectionalLight(0x8888ff, 0.2);
+        fillLight.position.set(2, 3, 2);
+        scene.add(fillLight);
+
+        // 车内顶灯
+        const interiorLight = new THREE.PointLight(0xffffee, 0.3, 3);
+        interiorLight.position.set(0, 1.4, -1);
+        scene.add(interiorLight);
+
+        // ==================== 粒子系统 ====================
+        let particles;
+        let particlePositions = [];
+        let particleVelocities = [];
+
+        function createParticles(count) {
+            if (particles) {
+                scene.remove(particles);
+                particles.geometry.dispose();
+                particles.material.dispose();
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3);
+            particlePositions = [];
+            particleVelocities = [];
+
+            for (let i = 0; i < count; i++) {
+                const x = (Math.random() - 0.5) * 2.5;
+                const y = 0.3 + Math.random() * 1.2;
+                const z = -2.5 + Math.random() * 2.5;
+
+                positions[i * 3] = x;
+                positions[i * 3 + 1] = y;
+                positions[i * 3 + 2] = z;
+
+                particlePositions.push({ x, y, z });
+                particleVelocities.push({
+                    x: (Math.random() - 0.5) * 0.01,
+                    y: (Math.random() - 0.5) * 0.01,
+                    z: (Math.random() - 0.5) * 0.01
+                });
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const material = new THREE.PointsMaterial({
+                color: currentState.primaryColor.clone(),
+                size: MODES[currentMode].particleSize,
+                transparent: true,
+                opacity: currentState.particleOpacity,
+                blending: THREE.AdditiveBlending
+            });
+
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+        }
+
+        createParticles(MODES.relax.particleCount);
+
+        // ==================== 控制器 ====================
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, 1, -2);
+        controls.minPolarAngle = Math.PI / 4;
+        controls.maxPolarAngle = Math.PI / 2;
+        controls.minDistance = 0.5;
+        controls.maxDistance = 3;
+
+        // ==================== 模式切换 ====================
+        function switchMode(newMode) {
+            if (newMode === currentMode && transitionProgress >= 1) return;
+
+            targetMode = newMode;
+            transitionProgress = 0;
+
+            // 显示过渡效果
+            document.getElementById('transitionOverlay').classList.add('active');
+            setTimeout(() => {
+                document.getElementById('transitionOverlay').classList.remove('active');
+            }, 500);
+
+            // 更新UI
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === newMode);
+            });
+
+            // 更新模式信息
+            const modeInfo = document.getElementById('modeInfo');
+            modeInfo.textContent = MODES[newMode].name;
+            modeInfo.style.color = '#' + MODES[newMode].primaryColor.getHexString();
+            modeInfo.classList.add('visible');
+            setTimeout(() => modeInfo.classList.remove('visible'), 2000);
+
+            // 重建粒子系统
+            createParticles(MODES[newMode].particleCount);
+        }
+
+        // 绑定按钮事件
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+        });
+
+        // ==================== 插值函数 ====================
+        function lerp(a, b, t) {
+            return a + (b - a) * t;
+        }
+
+        function lerpColor(colorA, colorB, t) {
+            return new THREE.Color(
+                lerp(colorA.r, colorB.r, t),
+                lerp(colorA.g, colorB.g, t),
+                lerp(colorA.b, colorB.b, t)
+            );
+        }
+
+        // ==================== 动画循环 ====================
+        let breathPhase = 0;
+        let colorCyclePhase = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 模式过渡
+            if (transitionProgress < 1) {
+                transitionProgress = Math.min(1, transitionProgress + TRANSITION_SPEED);
+                const t = transitionProgress;
+                const easeT = t * t * (3 - 2 * t); // smoothstep
+
+                const fromMode = MODES[currentMode];
+                const toMode = MODES[targetMode];
+
+                currentState.primaryColor = lerpColor(fromMode.primaryColor, toMode.primaryColor, easeT);
+                currentState.secondaryColor = lerpColor(fromMode.secondaryColor, toMode.secondaryColor, easeT);
+                currentState.breathSpeed = lerp(fromMode.breathSpeed, toMode.breathSpeed, easeT);
+                currentState.breathRange[0] = lerp(fromMode.breathRange[0], toMode.breathRange[0], easeT);
+                currentState.breathRange[1] = lerp(fromMode.breathRange[1], toMode.breathRange[1], easeT);
+                currentState.particleSpeed = lerp(fromMode.particleSpeed, toMode.particleSpeed, easeT);
+                currentState.particleOpacity = lerp(fromMode.particleOpacity, toMode.particleOpacity, easeT);
+                currentState.screenColor = lerpColor(
+                    new THREE.Color(fromMode.screenColor),
+                    new THREE.Color(toMode.screenColor),
+                    easeT
+                );
+                currentState.ambientIntensity = lerp(fromMode.ambientIntensity, toMode.ambientIntensity, easeT);
+
+                if (transitionProgress >= 1) {
+                    currentMode = targetMode;
+                }
+            }
+
+            // 活力模式颜色循环
+            let displayColor = currentState.primaryColor.clone();
+            if (currentMode === 'energy' && MODES.energy.colorCycle) {
+                colorCyclePhase += 0.02;
+                const hue = (colorCyclePhase % (Math.PI * 2)) / (Math.PI * 2);
+                displayColor.setHSL(hue, 0.8, 0.5);
+            }
+
+            // 呼吸效果
+            breathPhase += currentState.breathSpeed;
+            const breathValue = currentState.breathRange[0] +
+                (currentState.breathRange[1] - currentState.breathRange[0]) *
+                (0.5 + 0.5 * Math.sin(breathPhase));
+
+            // 更新氛围灯
+            ambientLightMaterials.forEach(mat => {
+                mat.color.copy(displayColor);
+                mat.opacity = breathValue;
+            });
+
+            // 更新屏幕颜色
+            screenMaterial.color.copy(currentState.screenColor);
+
+            // 更新环境光
+            ambientLight.intensity = currentState.ambientIntensity;
+
+            // 更新粒子
+            if (particles) {
+                const positions = particles.geometry.attributes.position.array;
+
+                for (let i = 0; i < particlePositions.length; i++) {
+                    const pos = particlePositions[i];
+                    const vel = particleVelocities[i];
+
+                    pos.x += vel.x * (currentState.particleSpeed / 0.002);
+                    pos.y += vel.y * (currentState.particleSpeed / 0.002);
+                    pos.z += vel.z * (currentState.particleSpeed / 0.002);
+
+                    // 边界检测
+                    if (pos.x < -1.3 || pos.x > 1.3) vel.x *= -1;
+                    if (pos.y < 0.3 || pos.y > 1.4) vel.y *= -1;
+                    if (pos.z < -2.5 || pos.z > 0.5) vel.z *= -1;
+
+                    positions[i * 3] = pos.x;
+                    positions[i * 3 + 1] = pos.y;
+                    positions[i * 3 + 2] = pos.z;
+                }
+
+                particles.geometry.attributes.position.needsUpdate = true;
+                particles.material.color.copy(displayColor);
+                particles.material.opacity = currentState.particleOpacity * breathValue;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // ==================== 窗口自适应 ====================
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ==================== 键盘快捷键 ====================
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '1') switchMode('relax');
+            if (e.key === '2') switchMode('focus');
+            if (e.key === '3') switchMode('energy');
+        });
+
+        // 初始显示模式信息
+        setTimeout(() => {
+            const modeInfo = document.getElementById('modeInfo');
+            modeInfo.classList.add('visible');
+            setTimeout(() => modeInfo.classList.remove('visible'), 2000);
+        }, 500);
+
+        animate();
+    </script>
+</body>
+</html>
