@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, watch } from 'vue'
 import { useVibeStore } from '@/stores/vibeStore'
 
 const store = useVibeStore()
 
 const currentSong = computed(() => {
-  // 优先使用 playResult（新方法）
   const playResult = store.plan?.playResult
   if (playResult) {
     return {
@@ -17,7 +16,6 @@ const currentSong = computed(() => {
       url: playResult.url
     }
   }
-  // 兼容旧的 music.songs（旧方法）
   return store.plan?.music?.songs?.[0] || null
 })
 
@@ -25,11 +23,23 @@ const playlist = computed(() => {
   return store.plan?.music?.songs || []
 })
 
-const isPlaying = ref(false)
-const progress = ref(0)
+// 使用 store 的音频状态
+const isPlaying = computed(() => store.isPlaying)
+const progress = computed(() => store.audioProgress)
+
+// 监听 playResult 变化，自动播放
+watch(() => store.plan?.playResult?.url, (url) => {
+  console.log('[MusicPlayer] playResult.url changed:', url)
+  console.log('[MusicPlayer] store.playMusic exists:', typeof store.playMusic)
+  if (url) {
+    console.log('[MusicPlayer] calling store.playMusic...')
+    store.playMusic(url)
+    console.log('[MusicPlayer] store.playMusic called')
+  }
+}, { immediate: true })
 
 function togglePlay() {
-  isPlaying.value = !isPlaying.value
+  store.toggleAudio()
 }
 </script>
 
