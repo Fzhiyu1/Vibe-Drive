@@ -5,6 +5,19 @@ import { useVibeStore } from '@/stores/vibeStore'
 const store = useVibeStore()
 
 const currentSong = computed(() => {
+  // 优先使用 playResult（新方法）
+  const playResult = store.plan?.playResult
+  if (playResult) {
+    return {
+      id: playResult.id,
+      title: playResult.name,
+      artist: playResult.artist,
+      coverUrl: playResult.coverUrl,
+      duration: playResult.duration,
+      url: playResult.url
+    }
+  }
+  // 兼容旧的 music.songs（旧方法）
   return store.plan?.music?.songs?.[0] || null
 })
 
@@ -27,7 +40,8 @@ function togglePlay() {
     <div v-if="currentSong" class="now-playing">
       <!-- 封面 -->
       <div class="cover">
-        <div class="cover-placeholder">♪</div>
+        <img v-if="currentSong.coverUrl" :src="currentSong.coverUrl" alt="封面" class="cover-img" />
+        <div v-else class="cover-placeholder">♪</div>
       </div>
 
       <!-- 歌曲信息 -->
@@ -105,6 +119,12 @@ function togglePlay() {
   justify-content: center;
   font-size: 3rem;
   color: var(--text-muted);
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .song-info {

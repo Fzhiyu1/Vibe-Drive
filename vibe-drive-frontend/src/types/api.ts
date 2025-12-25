@@ -89,6 +89,15 @@ export interface MusicRecommendation {
   bpmRange?: BpmRange
 }
 
+export interface PlayResult {
+  id: string
+  name: string
+  artist: string
+  url: string
+  duration: number
+  coverUrl?: string
+}
+
 export interface LightColor {
   hex: string
   temperature?: number // 色温 K
@@ -122,6 +131,7 @@ export interface Narrative {
 export interface AmbiencePlan {
   id: string
   music?: MusicRecommendation
+  playResult?: PlayResult
   light?: LightSetting
   narrative?: Narrative
   scent?: ScentSetting
