@@ -67,10 +67,28 @@ watch(isReady, (ready) => {
     scentParticles.updateScent(scent ?? null)
   }, { immediate: true })
 
-  // 监听音乐变化
-  watch(() => plan.value?.music?.songs?.[0], (song) => {
-    carScreen.updateSong(song ?? null)
+  // 监听音乐变化（优先使用 playResult）
+  watch(() => plan.value?.playResult, (playResult) => {
+    if (playResult) {
+      // 转换 PlayResult 为 Song 格式
+      carScreen.updateSong({
+        id: playResult.id,
+        title: playResult.name,
+        artist: playResult.artist,
+        duration: playResult.duration,
+        coverUrl: playResult.coverUrl
+      })
+    } else {
+      // 兼容旧的 music.songs
+      const song = plan.value?.music?.songs?.[0]
+      carScreen.updateSong(song ?? null)
+    }
   }, { immediate: true })
+
+  // 监听播放进度同步到车机屏幕
+  watch(() => store.audioProgress, (progress) => {
+    carScreen.updateProgress(progress / 100)  // audioProgress 是 0-100，需要转为 0-1
+  })
 })
 </script>
 
