@@ -37,6 +37,7 @@ public class SafetyModeFilter {
         return new AmbiencePlan(
             plan.id(),
             plan.music(),
+            plan.playResult(),
             plan.light() != null ? plan.light().forFocusMode() : null,
             plan.narrative(),
             plan.scent(),

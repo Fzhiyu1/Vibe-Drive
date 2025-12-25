@@ -18,8 +18,12 @@ public record AmbiencePlan(
     String id,
 
     @Valid
-    @Description("推荐的音乐列表和相关元数据")
+    @Description("推荐的音乐列表和相关元数据（旧方法）")
     MusicRecommendation music,
+
+    @Valid
+    @Description("当前播放的音乐信息（新方法）")
+    PlayResult playResult,
 
     @Valid
     @Description("氛围灯设置，L2专注模式下禁用动态效果，L3静默模式下为null")
@@ -70,6 +74,7 @@ public record AmbiencePlan(
             case L3_SILENT -> new AmbiencePlan(
                 id,
                 music,
+                playResult,
                 null,  // 禁用灯光
                 narrative != null ? narrative.withReducedVolume() : null,
                 scent != null ? scent.withIntensity(Math.min(scent.intensity(), 3)) : null,
@@ -81,6 +86,7 @@ public record AmbiencePlan(
             case L2_FOCUS -> new AmbiencePlan(
                 id,
                 music,
+                playResult,
                 light != null ? light.forFocusMode() : null,  // 禁用动态效果
                 narrative,
                 scent,
@@ -132,6 +138,7 @@ public record AmbiencePlan(
             null,
             null,
             null,
+            null,
             SafetyMode.L3_SILENT,
             "高速行驶中，静默模式，不主动推荐",
             null
@@ -151,6 +158,7 @@ public record AmbiencePlan(
     public static class Builder {
         private String id;
         private MusicRecommendation music;
+        private PlayResult playResult;
         private LightSetting light;
         private Narrative narrative;
         private ScentSetting scent;
@@ -166,6 +174,11 @@ public record AmbiencePlan(
 
         public Builder music(MusicRecommendation music) {
             this.music = music;
+            return this;
+        }
+
+        public Builder playResult(PlayResult playResult) {
+            this.playResult = playResult;
             return this;
         }
 
@@ -205,7 +218,7 @@ public record AmbiencePlan(
         }
 
         public AmbiencePlan build() {
-            return new AmbiencePlan(id, music, light, narrative, scent, massage, safetyMode, reasoning, createdAt);
+            return new AmbiencePlan(id, music, playResult, light, narrative, scent, massage, safetyMode, reasoning, createdAt);
         }
     }
 }

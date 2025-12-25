@@ -9,6 +9,7 @@ import com.vibe.model.LightSetting;
 import com.vibe.model.MassageSetting;
 import com.vibe.model.MusicRecommendation;
 import com.vibe.model.Narrative;
+import com.vibe.model.PlayResult;
 import com.vibe.model.ScentSetting;
 import com.vibe.model.ToolExecutionInfo;
 import com.vibe.model.enums.SafetyMode;
@@ -272,6 +273,7 @@ public class VibeDialogService {
                 .safetyMode(safetyMode)
                 .reasoning(reasoning)
                 .music(toolResults.music())
+                .playResult(toolResults.playResult())
                 .light(toolResults.light())
                 .narrative(toolResults.narrative())
                 .scent(toolResults.scent())
@@ -284,6 +286,7 @@ public class VibeDialogService {
 
         private final ObjectMapper objectMapper;
         private final AtomicReference<MusicRecommendation> music = new AtomicReference<>();
+        private final AtomicReference<PlayResult> playResult = new AtomicReference<>();
         private final AtomicReference<LightSetting> light = new AtomicReference<>();
         private final AtomicReference<Narrative> narrative = new AtomicReference<>();
         private final AtomicReference<ScentSetting> scent = new AtomicReference<>();
@@ -300,10 +303,12 @@ public class VibeDialogService {
             try {
                 switch (toolName) {
                     case "recommendMusic" -> music.set(objectMapper.readValue(resultJson, MusicRecommendation.class));
+                    case "playMusic" -> playResult.set(objectMapper.readValue(resultJson, PlayResult.class));
                     case "setLight" -> light.set(objectMapper.readValue(resultJson, LightSetting.class));
                     case "generateNarrative" -> narrative.set(objectMapper.readValue(resultJson, Narrative.class));
                     case "setScent" -> scent.set(objectMapper.readValue(resultJson, ScentSetting.class));
                     case "setMassage" -> massage.set(objectMapper.readValue(resultJson, MassageSetting.class));
+                    case "searchMusic" -> log.debug("searchMusic result received (not stored)");
                     default -> log.debug("Skip tool result parsing: toolName={}", toolName);
                 }
             } catch (Exception e) {
@@ -313,6 +318,10 @@ public class VibeDialogService {
 
         private MusicRecommendation music() {
             return music.get();
+        }
+
+        private PlayResult playResult() {
+            return playResult.get();
         }
 
         private LightSetting light() {
