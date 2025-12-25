@@ -20,6 +20,7 @@ function openModal() {
 }
 
 function handleSelect(env: Environment) {
+  store.unlockAudio()  // 用户交互时激活音频
   store.setEnvironment(env)
   store.analyzeStream()
 }
