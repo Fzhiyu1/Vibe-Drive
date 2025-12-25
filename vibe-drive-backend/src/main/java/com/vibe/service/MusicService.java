@@ -195,12 +195,14 @@ public class MusicService {
      */
     public SearchResult search(String keyword) {
         String encodedKeyword = URLEncoder.encode(keyword, StandardCharsets.UTF_8);
-        String url = musicApiUrl + "/api/music/search?keyword=" + encodedKeyword + "&limit=" + SEARCH_LIMIT;
+        String urlStr = musicApiUrl + "/api/music/search?keyword=" + encodedKeyword + "&limit=" + SEARCH_LIMIT;
 
-        log.info("Searching music: keyword={}", keyword);
+        log.info("Searching music: keyword={}, url={}", keyword, urlStr);
 
         try {
-            String response = restTemplate.getForObject(url, String.class);
+            // 使用 URI 对象避免 RestTemplate 二次编码
+            java.net.URI uri = java.net.URI.create(urlStr);
+            String response = restTemplate.getForObject(uri, String.class);
             return parseSearchResponse(response);
         } catch (Exception e) {
             log.error("Failed to search music: {}", e.getMessage());
@@ -270,25 +272,25 @@ public class MusicService {
         String id = node.get("id").asText();
         String name = node.get("name").asText();
 
-        // 获取歌手名（可能有多个）
+        // 获取歌手名（网易云 API 使用 "ar" 字段）
         String artist = "";
-        JsonNode artists = node.get("artists");
+        JsonNode artists = node.get("ar");
         if (artists != null && artists.isArray() && !artists.isEmpty()) {
             artist = artists.get(0).get("name").asText();
         }
 
-        // 时长（毫秒转秒）
-        int duration = node.has("duration") ? node.get("duration").asInt() / 1000 : 0;
+        // 时长（网易云 API 使用 "dt" 字段，毫秒转秒）
+        int duration = node.has("dt") ? node.get("dt").asInt() / 1000 : 0;
 
-        // 播放量（可能没有）
-        long plays = node.has("playCount") ? node.get("playCount").asLong() : 0;
+        // 播放量（网易云 API 使用 "pop" 字段）
+        long plays = node.has("pop") ? node.get("pop").asLong() : 0;
 
         // 费用类型
         int fee = node.has("fee") ? node.get("fee").asInt() : 0;
 
-        // 封面 URL
+        // 封面 URL（网易云 API 使用 "al" 字段）
         String coverUrl = "";
-        JsonNode album = node.get("album");
+        JsonNode album = node.get("al");
         if (album != null && album.has("picUrl")) {
             coverUrl = album.get("picUrl").asText();
         }
