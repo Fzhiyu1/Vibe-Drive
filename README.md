@@ -32,6 +32,11 @@ Vibe Drive 是一个通用智能体（General-purpose Agent）架构的车载空
 - **LangChain4j 0.36.x** - AI Agent 框架
 - **SpringDoc OpenAPI** - API 文档
 
+### 微服务
+
+- **Go 1.21+** - 音乐 API 微服务
+- **go-musicfox/netease-music** - 网易云音乐 API
+
 ### 前端
 
 - **Vue 3** + **TypeScript**
@@ -47,12 +52,14 @@ Vibe Drive 是一个通用智能体（General-purpose Agent）架构的车载空
 
 ```
 Vibe-Drive/
-├── vibe-drive-backend/       # 后端服务
+├── vibe-drive-backend/       # Java 后端服务
 │   ├── src/main/java/com/vibe/
 │   └── pom.xml
-├── vibe-drive-frontend/      # 前端应用
+├── vibe-drive-frontend/      # Vue 前端应用
 │   ├── src/
 │   └── package.json
+├── services/                 # 微服务
+│   └── music-api/            # Go 音乐 API 服务
 └── docs/                     # 项目文档
     ├── 需求规格说明书.md
     └── plan/                 # 开发计划
@@ -65,6 +72,15 @@ Vibe-Drive/
 - JDK 21+
 - Node.js 18+
 - Maven 3.9+
+- Go 1.21+
+
+### 音乐微服务启动
+
+```bash
+cd services/music-api
+go run main.go
+# 服务运行在 http://localhost:8081
+```
 
 ### 后端启动
 
