@@ -27,6 +27,22 @@ export const useVibeStore = defineStore('vibe', () => {
   const demoMode = ref(false)
   const chainExpanded = ref(false)
 
+  // ============ 音频管理 ============
+  const audio = new Audio()
+  const isPlaying = ref(false)
+  const audioProgress = ref(0)
+
+  // 音频事件监听
+  audio.addEventListener('timeupdate', () => {
+    if (audio.duration > 0) {
+      audioProgress.value = (audio.currentTime / audio.duration) * 100
+    }
+  })
+  audio.addEventListener('ended', () => {
+    isPlaying.value = false
+    audioProgress.value = 0
+  })
+
   // ============ 计算属性 ============
   // 安全模式阈值与后端一致：L1 < 60, L2 60-100, L3 >= 100
   const safetyMode = computed<SafetyMode>(() => {
@@ -164,6 +180,36 @@ export const useVibeStore = defineStore('vibe', () => {
     error.value = null
   }
 
+  // ============ 音频控制方法 ============
+  function unlockAudio() {
+    // 播放静音音频来激活
+    audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+    audio.play().then(() => audio.pause()).catch(() => {})
+  }
+
+  function playMusic(url: string) {
+    console.log('[vibeStore] playMusic called:', url)
+    console.log('[vibeStore] audio.volume:', audio.volume, 'audio.muted:', audio.muted)
+    audio.src = url
+    audio.volume = 1  // 确保音量最大
+    audio.muted = false  // 确保不静音
+    audio.play().then(() => {
+      console.log('[vibeStore] audio.play() success, duration:', audio.duration)
+      isPlaying.value = true
+    }).catch((err) => {
+      console.error('[vibeStore] audio.play() failed:', err)
+    })
+  }
+
+  function toggleAudio() {
+    if (isPlaying.value) {
+      audio.pause()
+    } else {
+      audio.play()
+    }
+    isPlaying.value = !isPlaying.value
+  }
+
   return {
     // 状态
     sessionId,
@@ -175,6 +221,9 @@ export const useVibeStore = defineStore('vibe', () => {
     theme,
     demoMode,
     chainExpanded,
+    // 音频状态
+    isPlaying,
+    audioProgress,
     // 计算属性
     safetyMode,
     hasActivePlan,
@@ -185,5 +234,9 @@ export const useVibeStore = defineStore('vibe', () => {
     analyze,
     toggleTheme,
     resetSession,
+    // 音频控制
+    unlockAudio,
+    playMusic,
+    toggleAudio,
   }
 })
