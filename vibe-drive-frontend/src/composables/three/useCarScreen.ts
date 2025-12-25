@@ -15,6 +15,12 @@ export function useCarScreen(meshes: CarInteriorMeshes): UseCarScreenReturn {
   let currentSong: Song | null = null
   let currentProgress = 0
 
+  // 滚动相关
+  let scrollOffset = 0
+  let textWidth = 0
+  const scrollSpeed = 60 // 像素/秒（加快）
+  const maxWidth = 360 // 文字显示区域宽度
+
   function drawPlayer() {
     // 背景（浅色，模拟屏幕发光）
     ctx.fillStyle = '#2a3a4a'
@@ -28,25 +34,50 @@ export function useCarScreen(meshes: CarInteriorMeshes): UseCarScreenReturn {
       return
     }
 
-    // 播放图标 + 歌曲信息
-    ctx.fillStyle = '#fff'
+    // 播放图标 + 歌曲名（带滚动）
+    const songText = currentSong.title
     ctx.font = 'bold 18px Arial'
-    ctx.fillText(`▶  ${currentSong.artist} - ${currentSong.title}`, 20, 50)
+    textWidth = ctx.measureText(songText).width
+
+    // 绘制播放图标
+    ctx.fillStyle = '#fff'
+    ctx.fillText('▶', 20, 45)
+
+    // 裁剪区域绘制滚动歌曲名
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(50, 25, maxWidth - 30, 30)
+    ctx.clip()
+
+    if (textWidth > maxWidth - 50) {
+      // 文字太长，需要滚动
+      ctx.fillText(songText, 50 - scrollOffset, 45)
+      // 循环显示
+      ctx.fillText(songText, 50 - scrollOffset + textWidth + 50, 45)
+    } else {
+      ctx.fillText(songText, 50, 45)
+    }
+    ctx.restore()
+
+    // 作者名（固定显示在进度条下方）
+    ctx.fillStyle = '#999'
+    ctx.font = '14px Arial'
+    ctx.fillText(currentSong.artist, 20, 130)
 
     // 进度条背景
     ctx.fillStyle = '#333'
-    ctx.fillRect(20, 80, 360, 8)
+    ctx.fillRect(20, 70, 360, 8)
 
     // 进度条
     ctx.fillStyle = '#00aaff'
-    ctx.fillRect(20, 80, 360 * currentProgress, 8)
+    ctx.fillRect(20, 70, 360 * currentProgress, 8)
 
     // 时间显示
     const current = Math.floor(currentSong.duration * currentProgress)
     const total = currentSong.duration
     ctx.fillStyle = '#999'
     ctx.font = '12px Arial'
-    ctx.fillText(formatTime(current) + ' / ' + formatTime(total), 20, 110)
+    ctx.fillText(formatTime(current) + ' / ' + formatTime(total), 20, 100)
 
     meshes.screenTexture.needsUpdate = true
   }
@@ -58,8 +89,10 @@ export function useCarScreen(meshes: CarInteriorMeshes): UseCarScreenReturn {
   }
 
   function updateSong(song: Song | null) {
+    console.log('[useCarScreen] updateSong:', song)
     currentSong = song
     currentProgress = 0
+    scrollOffset = 0  // 重置滚动
     drawPlayer()
   }
 
@@ -68,8 +101,16 @@ export function useCarScreen(meshes: CarInteriorMeshes): UseCarScreenReturn {
     drawPlayer()
   }
 
-  function tick(_delta: number) {
-    // 可用于动画效果
+  function tick(delta: number) {
+    // 文字滚动动画
+    if (currentSong && textWidth > maxWidth - 50) {
+      scrollOffset += scrollSpeed * delta
+      // 循环滚动
+      if (scrollOffset > textWidth + 50) {
+        scrollOffset = 0
+      }
+      drawPlayer()
+    }
   }
 
   // 初始绘制
