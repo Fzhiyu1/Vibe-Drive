@@ -75,7 +75,7 @@ class EventSerializationTest {
     class ToolEndEventTest {
         @Test
         void shouldCreateSuccessEvent() {
-            ToolEndEvent event = ToolEndEvent.success("MusicTool", 100);
+            ToolEndEvent event = ToolEndEvent.success("MusicTool", "result", 100);
 
             assertThat(event.toolName()).isEqualTo("MusicTool");
             assertThat(event.durationMs()).isEqualTo(100);
@@ -94,7 +94,7 @@ class EventSerializationTest {
 
         @Test
         void shouldRejectEmptyToolName() {
-            assertThatThrownBy(() -> new ToolEndEvent("", 100, true))
+            assertThatThrownBy(() -> new ToolEndEvent("", "result", 100, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Tool name cannot be empty");
         }
