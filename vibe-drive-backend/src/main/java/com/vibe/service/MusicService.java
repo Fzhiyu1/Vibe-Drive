@@ -3,31 +3,47 @@ package com.vibe.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vibe.model.BpmRange;
-import com.vibe.model.MusicRecommendation;
-import com.vibe.model.Song;
+import com.vibe.model.*;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
  * 音乐推荐服务
  * 负责加载曲库、根据条件筛选和推荐音乐
+ * 支持调用 Go 微服务（网易云 API）
  */
 @Service
 public class MusicService {
 
     private static final Logger log = LoggerFactory.getLogger(MusicService.class);
+    private static final int SEARCH_LIMIT = 20;
+
+    @Value("${music-api.url:http://localhost:8081}")
+    private String musicApiUrl;
+
+    private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
+    private List<Song> songLibrary;
+
+    public MusicService(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+        this.restTemplate = new RestTemplate();
+    }
 
     /**
-     * 情绪 → BPM 范围映射
+     * 情绪 → BPM 范围映射（旧方法使用）
      */
     private static final Map<String, BpmRange> MOOD_BPM_MAP = Map.of(
         "happy", new BpmRange(100, 140),
@@ -38,7 +54,7 @@ public class MusicService {
     );
 
     /**
-     * 时段 → 推荐流派映射
+     * 时段 → 推荐流派映射（旧方法使用）
      */
     private static final Map<String, List<String>> TIME_GENRE_MAP = Map.of(
         "midnight", List.of("jazz", "classical", "ambient"),
@@ -49,13 +65,6 @@ public class MusicService {
         "afternoon", List.of("pop", "rock", "jazz"),
         "evening", List.of("jazz", "folk", "pop")
     );
-
-    private final ObjectMapper objectMapper;
-    private List<Song> songLibrary;
-
-    public MusicService(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     @PostConstruct
     public void init() {
@@ -86,14 +95,11 @@ public class MusicService {
     }
 
     /**
-     * 推荐音乐
+     * 推荐音乐（旧方法，使用本地 Mock 数据）
      *
-     * @param mood           目标情绪
-     * @param timeOfDay      时段
-     * @param passengerCount 乘客数量
-     * @param genre          偏好流派（可选）
-     * @return 音乐推荐结果
+     * @deprecated 请使用 {@link #search(String)} 和 {@link #play(String)} 方法
      */
+    @Deprecated
     public MusicRecommendation recommend(String mood, String timeOfDay, int passengerCount, String genre) {
         BpmRange targetBpm = MOOD_BPM_MAP.getOrDefault(mood, new BpmRange(60, 120));
         String effectiveGenre = determineGenre(genre, timeOfDay, passengerCount);
@@ -177,5 +183,175 @@ public class MusicService {
      */
     public int getLibrarySize() {
         return songLibrary != null ? songLibrary.size() : 0;
+    }
+
+    // ==================== 新方法：调用 Go 微服务 ====================
+
+    /**
+     * 搜索音乐
+     *
+     * @param keyword 搜索关键词
+     * @return 搜索结果
+     */
+    public SearchResult search(String keyword) {
+        String encodedKeyword = URLEncoder.encode(keyword, StandardCharsets.UTF_8);
+        String url = musicApiUrl + "/api/music/search?keyword=" + encodedKeyword + "&limit=" + SEARCH_LIMIT;
+
+        log.info("Searching music: keyword={}", keyword);
+
+        try {
+            String response = restTemplate.getForObject(url, String.class);
+            return parseSearchResponse(response);
+        } catch (Exception e) {
+            log.error("Failed to search music: {}", e.getMessage());
+            throw new RuntimeException("音乐搜索服务不可用: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 播放音乐
+     *
+     * @param id 歌曲 ID
+     * @return 播放结果
+     */
+    public PlayResult play(String id) {
+        log.info("Getting play info: id={}", id);
+
+        try {
+            // 获取播放 URL
+            String urlResponse = restTemplate.getForObject(
+                musicApiUrl + "/api/music/url?id=" + id, String.class);
+            String playUrl = parseUrlResponse(urlResponse);
+
+            // 获取歌曲详情
+            String detailResponse = restTemplate.getForObject(
+                musicApiUrl + "/api/music/detail?id=" + id, String.class);
+
+            return parseDetailResponse(detailResponse, playUrl);
+        } catch (Exception e) {
+            log.error("Failed to get play info: {}", e.getMessage());
+            throw new RuntimeException("获取播放信息失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 解析搜索响应
+     */
+    private SearchResult parseSearchResponse(String response) {
+        try {
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode result = root.get("result");
+            if (result == null) {
+                return new SearchResult(List.of(), 0);
+            }
+
+            int total = result.has("songCount") ? result.get("songCount").asInt() : 0;
+            JsonNode songsNode = result.get("songs");
+            if (songsNode == null || !songsNode.isArray()) {
+                return new SearchResult(List.of(), total);
+            }
+
+            List<SongCandidate> songs = new ArrayList<>();
+            for (JsonNode songNode : songsNode) {
+                songs.add(parseSongCandidate(songNode));
+            }
+
+            return new SearchResult(songs, total);
+        } catch (Exception e) {
+            log.error("Failed to parse search response: {}", e.getMessage());
+            throw new RuntimeException("解析搜索结果失败", e);
+        }
+    }
+
+    /**
+     * 解析单个歌曲候选
+     */
+    private SongCandidate parseSongCandidate(JsonNode node) {
+        String id = node.get("id").asText();
+        String name = node.get("name").asText();
+
+        // 获取歌手名（可能有多个）
+        String artist = "";
+        JsonNode artists = node.get("artists");
+        if (artists != null && artists.isArray() && !artists.isEmpty()) {
+            artist = artists.get(0).get("name").asText();
+        }
+
+        // 时长（毫秒转秒）
+        int duration = node.has("duration") ? node.get("duration").asInt() / 1000 : 0;
+
+        // 播放量（可能没有）
+        long plays = node.has("playCount") ? node.get("playCount").asLong() : 0;
+
+        // 费用类型
+        int fee = node.has("fee") ? node.get("fee").asInt() : 0;
+
+        // 封面 URL
+        String coverUrl = "";
+        JsonNode album = node.get("album");
+        if (album != null && album.has("picUrl")) {
+            coverUrl = album.get("picUrl").asText();
+        }
+
+        return new SongCandidate(id, name, artist, duration, plays, fee, coverUrl);
+    }
+
+    /**
+     * 解析 URL 响应
+     */
+    private String parseUrlResponse(String response) {
+        try {
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode data = root.get("data");
+            if (data != null && data.isArray() && !data.isEmpty()) {
+                JsonNode first = data.get(0);
+                if (first.has("url") && !first.get("url").isNull()) {
+                    return first.get("url").asText();
+                }
+            }
+            return "";
+        } catch (Exception e) {
+            log.error("Failed to parse URL response: {}", e.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * 解析详情响应
+     */
+    private PlayResult parseDetailResponse(String response, String playUrl) {
+        try {
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode songs = root.get("songs");
+            if (songs == null || !songs.isArray() || songs.isEmpty()) {
+                throw new RuntimeException("歌曲详情不存在");
+            }
+
+            JsonNode song = songs.get(0);
+            String id = song.get("id").asText();
+            String name = song.get("name").asText();
+
+            // 歌手名
+            String artist = "";
+            JsonNode ar = song.get("ar");
+            if (ar != null && ar.isArray() && !ar.isEmpty()) {
+                artist = ar.get(0).get("name").asText();
+            }
+
+            // 时长（毫秒转秒）
+            int duration = song.has("dt") ? song.get("dt").asInt() / 1000 : 0;
+
+            // 封面 URL
+            String coverUrl = "";
+            JsonNode al = song.get("al");
+            if (al != null && al.has("picUrl")) {
+                coverUrl = al.get("picUrl").asText();
+            }
+
+            return new PlayResult(id, name, artist, playUrl, duration, coverUrl);
+        } catch (Exception e) {
+            log.error("Failed to parse detail response: {}", e.getMessage());
+            throw new RuntimeException("解析歌曲详情失败", e);
+        }
     }
 }
