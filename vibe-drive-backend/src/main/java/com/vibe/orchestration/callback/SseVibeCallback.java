@@ -72,7 +72,7 @@ public class SseVibeCallback implements VibeStreamCallback {
         if (!debugEvents) {
             return;
         }
-        sendEvent(ToolEndEvent.EVENT_TYPE, ToolEndEvent.success(toolName, durationMs));
+        sendEvent(ToolEndEvent.EVENT_TYPE, ToolEndEvent.success(toolName, result, durationMs));
     }
 
     @Override

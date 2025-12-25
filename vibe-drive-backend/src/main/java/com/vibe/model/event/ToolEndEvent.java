@@ -15,6 +15,9 @@ public record ToolEndEvent(
     @Description("工具名称")
     String toolName,
 
+    @Description("执行结果")
+    String result,
+
     @Min(value = 0, message = "Duration must be non-negative")
     @Description("执行耗时（毫秒）")
     long durationMs,
@@ -31,8 +34,8 @@ public record ToolEndEvent(
     /**
      * 简化构造：成功执行
      */
-    public ToolEndEvent(String toolName, long durationMs, boolean success) {
-        this(toolName, durationMs, success, null, Instant.now());
+    public ToolEndEvent(String toolName, String result, long durationMs, boolean success) {
+        this(toolName, result, durationMs, success, null, Instant.now());
     }
 
     /**
@@ -50,22 +53,22 @@ public record ToolEndEvent(
     /**
      * 创建成功事件
      */
-    public static ToolEndEvent success(String toolName, long durationMs) {
-        return new ToolEndEvent(toolName, durationMs, true, null, Instant.now());
+    public static ToolEndEvent success(String toolName, String result, long durationMs) {
+        return new ToolEndEvent(toolName, result, durationMs, true, null, Instant.now());
     }
 
     /**
      * 创建失败事件
      */
     public static ToolEndEvent error(String toolName, String error) {
-        return new ToolEndEvent(toolName, 0, false, error, Instant.now());
+        return new ToolEndEvent(toolName, null, 0, false, error, Instant.now());
     }
 
     /**
      * 创建失败事件（带耗时）
      */
     public static ToolEndEvent error(String toolName, long durationMs, String error) {
-        return new ToolEndEvent(toolName, durationMs, false, error, Instant.now());
+        return new ToolEndEvent(toolName, null, durationMs, false, error, Instant.now());
     }
 
     /**
