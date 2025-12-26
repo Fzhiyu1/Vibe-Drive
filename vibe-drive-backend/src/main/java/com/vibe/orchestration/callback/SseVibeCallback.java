@@ -69,9 +69,7 @@ public class SseVibeCallback implements VibeStreamCallback {
         ToolInFlight inFlight = inFlightTools.remove(toolName);
         long durationMs = inFlight != null ? nanosToMillis(System.nanoTime() - inFlight.startNanos()) : 0;
         toolExecutions.add(ToolExecutionInfo.success(toolName, inFlight != null ? inFlight.arguments() : null, result, durationMs));
-        if (!debugEvents) {
-            return;
-        }
+        // 始终推送工具结果，让前端可以立即应用效果
         sendEvent(ToolEndEvent.EVENT_TYPE, ToolEndEvent.success(toolName, result, durationMs));
     }
 

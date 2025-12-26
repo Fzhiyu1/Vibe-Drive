@@ -81,6 +81,57 @@ export const useVibeStore = defineStore('vibe', () => {
     })
   }
 
+  // 立即应用工具结果
+  function applyToolResult(toolName: string, resultJson: string) {
+    try {
+      const result = JSON.parse(resultJson)
+
+      // 初始化 plan 如果不存在
+      if (!plan.value) {
+        plan.value = {} as AmbiencePlan
+      }
+
+      switch (toolName) {
+        case 'setLight':
+          plan.value = { ...plan.value, light: result }
+          console.log('[vibeStore] 立即应用灯光:', result)
+          break
+        case 'setScent':
+          plan.value = { ...plan.value, scent: result }
+          console.log('[vibeStore] 立即应用香氛:', result)
+          break
+        case 'setMassage':
+          plan.value = { ...plan.value, massage: result }
+          console.log('[vibeStore] 立即应用按摩:', result)
+          break
+        case 'batchPlayMusic':
+          plan.value = { ...plan.value, playlist: result }
+          currentPlaylistIndex.value = 0
+          // 自动播放第一首
+          if (result.songs?.length > 0 && result.songs[0].url) {
+            playMusic(result.songs[0].url)
+          }
+          console.log('[vibeStore] 立即应用歌单:', result)
+          break
+        case 'playMusic':
+          plan.value = { ...plan.value, playResult: result }
+          if (result.url) {
+            playMusic(result.url)
+          }
+          console.log('[vibeStore] 立即播放音乐:', result)
+          break
+        case 'generateNarrative':
+          plan.value = { ...plan.value, narrative: result }
+          console.log('[vibeStore] 立即应用叙事:', result)
+          break
+        default:
+          console.log('[vibeStore] 未处理的工具结果:', toolName)
+      }
+    } catch (e) {
+      console.warn('[vibeStore] 解析工具结果失败:', toolName, e)
+    }
+  }
+
   async function analyzeStream() {
     if (!environment.value) {
       error.value = '请先设置环境数据'
@@ -118,6 +169,8 @@ export const useVibeStore = defineStore('vibe', () => {
           toolName,
           toolOutput: result,
         })
+        // 立即应用工具结果
+        applyToolResult(toolName, result)
       },
       onComplete: (newPlan) => {
         plan.value = newPlan
