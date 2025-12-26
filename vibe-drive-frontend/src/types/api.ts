@@ -237,7 +237,7 @@ export interface ErrorEvent {
 // ============ UI 辅助类型 ============
 
 export interface ThinkingStep {
-  type: 'thinking' | 'tool_start' | 'tool_end' | 'complete' | 'error'
+  type: 'thinking' | 'tool_start' | 'tool_end' | 'complete' | 'error' | 'user'
   timestamp: number
   content: string
   toolName?: string

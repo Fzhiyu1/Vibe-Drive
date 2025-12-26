@@ -247,6 +247,20 @@ export const useVibeStore = defineStore('vibe', () => {
     error.value = null
   }
 
+  // 发送用户消息（语音输入）
+  function sendMessage(text: string) {
+    if (!text.trim()) return
+
+    // 添加用户消息到思维链
+    addThinkingStep({
+      type: 'user',
+      content: text
+    })
+
+    // TODO: 调用主智能体 API
+    console.log('[vibeStore] 用户消息:', text)
+  }
+
   // ============ 音频控制方法 ============
   function unlockAudio() {
     // 播放静音音频来激活
@@ -336,6 +350,7 @@ export const useVibeStore = defineStore('vibe', () => {
     analyze,
     toggleTheme,
     resetSession,
+    sendMessage,
     // 音频控制
     unlockAudio,
     playMusic,

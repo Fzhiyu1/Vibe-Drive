@@ -10,6 +10,7 @@ import ScentDisplay from '@/components/scent/ScentDisplay.vue'
 import MassageDisplay from '@/components/massage/MassageDisplay.vue'
 import ThinkingChain from '@/components/agent/ThinkingChain.vue'
 import ScenarioModal from '@/components/environment/ScenarioModal.vue'
+import VoiceInput from '@/components/voice/VoiceInput.vue'
 import type { Environment } from '@/types/api'
 
 const store = useVibeStore()
@@ -47,6 +48,9 @@ function handleSelect(env: Environment) {
         >
           编排中...
         </button>
+
+        <!-- 语音输入 -->
+        <VoiceInput class="voice-input-wrapper" />
       </div>
     </template>
 
@@ -107,5 +111,11 @@ function handleSelect(env: Environment) {
 
 .demo-btn.stop {
   background: var(--accent-danger);
+}
+
+.voice-input-wrapper {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
 }
 </style>
