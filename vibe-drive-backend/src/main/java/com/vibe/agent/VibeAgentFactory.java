@@ -2,6 +2,7 @@ package com.vibe.agent;
 
 import com.vibe.tool.LightTool;
 import com.vibe.tool.MassageTool;
+import com.vibe.tool.MusicSeedTool;
 import com.vibe.tool.MusicTool;
 import com.vibe.tool.NarrativeTool;
 import com.vibe.tool.ScentTool;
@@ -23,6 +24,7 @@ public class VibeAgentFactory {
     private final StreamingChatModel streamingModel;
     private final ChatMemoryStore memoryStore;
     private final MusicTool musicTool;
+    private final MusicSeedTool musicSeedTool;
     private final LightTool lightTool;
     private final NarrativeTool narrativeTool;
     private final ScentTool scentTool;
@@ -36,6 +38,7 @@ public class VibeAgentFactory {
             StreamingChatModel streamingModel,
             ChatMemoryStore memoryStore,
             MusicTool musicTool,
+            MusicSeedTool musicSeedTool,
             LightTool lightTool,
             NarrativeTool narrativeTool,
             ScentTool scentTool,
@@ -44,6 +47,7 @@ public class VibeAgentFactory {
         this.streamingModel = streamingModel;
         this.memoryStore = memoryStore;
         this.musicTool = musicTool;
+        this.musicSeedTool = musicSeedTool;
         this.lightTool = lightTool;
         this.narrativeTool = narrativeTool;
         this.scentTool = scentTool;
@@ -66,7 +70,7 @@ public class VibeAgentFactory {
             .streamingChatModel(streamingModel)
             .chatMemoryProvider(memoryProvider)
             .systemMessageProvider(id -> promptAssembler.assembleSystemPrompt())
-            .tools(musicTool, lightTool, narrativeTool, scentTool, massageTool)
+            .tools(musicTool, musicSeedTool, lightTool, narrativeTool, scentTool, massageTool)
             .build();
     }
 }
