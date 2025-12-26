@@ -14,12 +14,24 @@ import org.springframework.stereotype.Component;
 public class ScentTool {
 
     @Tool("""
-        设置车内香氛系统。根据场景和用户状态选择合适的香氛类型和强度。
-        - 疲劳/压力大时推荐薰衣草(lavender)放松
-        - 需要提神时推荐薄荷(peppermint)或柑橘(citrus)
-        - 海边/山路推荐海洋(ocean)或森林(forest)
-        - 温馨场景推荐香草(vanilla)
-        - 强度1-10，建议日常使用3-5，特殊场景可调高
+        设置车内香氛系统。
+
+        香氛类型及特点：
+        - lavender: 薰衣草，舒缓放松
+        - peppermint: 薄荷，清新提神
+        - ocean: 海洋，清爽自然
+        - forest: 森林，木质清新
+        - citrus: 柑橘，活力清新
+        - vanilla: 香草，温暖甜美
+        - none: 关闭香氛
+
+        参数说明：
+        - 强度 1-10，根据需要调节
+        - 持续时间 0 表示持续释放
+
+        自由发挥：
+        - 根据场景自主选择，不要形成固定映射
+        - 同一场景可以尝试不同香氛
         """)
     public ScentSetting setScent(
         @P("香氛类型: lavender/peppermint/ocean/forest/citrus/vanilla/none") String type,

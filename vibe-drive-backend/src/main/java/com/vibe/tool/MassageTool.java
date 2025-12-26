@@ -18,13 +18,29 @@ import java.util.List;
 public class MassageTool {
 
     @Tool("""
-        设置座椅按摩功能。根据驾驶员疲劳程度和驾驶场景选择按摩模式。
-        - 长途驾驶/疲劳时推荐relax放松模式
-        - 需要提神时推荐energize活力模式
-        - 日常使用推荐comfort舒适模式
-        - 运动后推荐sport运动模式深度按摩
-        - 高速行驶时应降低强度或关闭
-        - 强度1-10，建议日常3-5
+        设置座椅按摩功能。
+
+        按摩模式及特点：
+        - relax: 放松模式，轻柔舒缓
+        - energize: 活力模式，振奋精神
+        - comfort: 舒适模式，均衡适中
+        - sport: 运动模式，深度按摩
+        - off: 关闭按摩
+
+        按摩区域：
+        - back: 背部
+        - lumbar: 腰部
+        - shoulder: 肩部
+        - thigh: 大腿
+        - all: 全部区域
+
+        参数说明：
+        - 强度 1-10，根据需要调节
+        - 高速行驶时建议降低强度
+
+        自由发挥：
+        - 根据场景自主选择，不要形成固定映射
+        - 可以组合不同区域
         """)
     public MassageSetting setMassage(
         @P("按摩模式: relax/energize/comfort/sport/off") String mode,
