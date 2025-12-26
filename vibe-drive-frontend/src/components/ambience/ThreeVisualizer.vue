@@ -67,10 +67,29 @@ watch(isReady, (ready) => {
     scentParticles.updateScent(scent ?? null)
   }, { immediate: true })
 
-  // 监听音乐变化（优先使用 playResult）
-  watch(() => plan.value?.playResult, (playResult) => {
+  // 监听音乐变化（优先使用 playlist，其次 playResult）
+  watch([
+    () => plan.value?.playlist,
+    () => plan.value?.playResult,
+    () => store.currentPlaylistIndex
+  ], ([playlist, playResult, playlistIndex]) => {
+    // 优先使用 playlist 的当前歌曲
+    if (playlist && playlist.songs.length > 0) {
+      const index = playlistIndex ?? 0
+      const song = playlist.songs[Math.min(index, playlist.songs.length - 1)]
+      if (song) {
+        carScreen.updateSong({
+          id: song.id,
+          title: song.name,
+          artist: song.artist,
+          duration: song.duration,
+          coverUrl: song.coverUrl
+        })
+        return
+      }
+    }
+    // 其次使用 playResult
     if (playResult) {
-      // 转换 PlayResult 为 Song 格式
       carScreen.updateSong({
         id: playResult.id,
         title: playResult.name,
@@ -78,11 +97,11 @@ watch(isReady, (ready) => {
         duration: playResult.duration,
         coverUrl: playResult.coverUrl
       })
-    } else {
-      // 兼容旧的 music.songs
-      const song = plan.value?.music?.songs?.[0]
-      carScreen.updateSong(song ?? null)
+      return
     }
+    // 兼容旧的 music.songs
+    const song = plan.value?.music?.songs?.[0]
+    carScreen.updateSong(song ?? null)
   }, { immediate: true })
 
   // 监听播放进度同步到车机屏幕

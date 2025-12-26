@@ -4,7 +4,23 @@ import { useVibeStore } from '@/stores/vibeStore'
 
 const store = useVibeStore()
 
+// 当前歌曲（优先 playlist，其次 playResult）
 const currentSong = computed(() => {
+  const playlist = store.plan?.playlist
+  if (playlist && playlist.songs.length > 0) {
+    const index = store.currentPlaylistIndex
+    const song = playlist.songs[Math.min(index, playlist.songs.length - 1)]
+    if (song) {
+      return {
+        id: song.id,
+        title: song.name,
+        artist: song.artist,
+        coverUrl: song.coverUrl,
+        duration: song.duration,
+        url: song.url
+      }
+    }
+  }
   const playResult = store.plan?.playResult
   if (playResult) {
     return {
@@ -19,27 +35,52 @@ const currentSong = computed(() => {
   return store.plan?.music?.songs?.[0] || null
 })
 
+// 歌单列表（优先新的 playlist）
 const playlist = computed(() => {
-  return store.plan?.music?.songs || []
+  return store.plan?.playlist?.songs || store.plan?.music?.songs || []
 })
+
+const currentIndex = computed(() => store.currentPlaylistIndex)
+const hasNext = computed(() => currentIndex.value < playlist.value.length - 1)
+const hasPrevious = computed(() => currentIndex.value > 0)
 
 // 使用 store 的音频状态
 const isPlaying = computed(() => store.isPlaying)
 const progress = computed(() => store.audioProgress)
 
-// 监听 playResult 变化，自动播放
+// 监听 playlist 变化，自动播放第一首
+watch(() => store.plan?.playlist, (newPlaylist) => {
+  if (newPlaylist && newPlaylist.songs.length > 0) {
+    store.currentPlaylistIndex = 0
+    const firstSong = newPlaylist.songs[0]
+    if (firstSong?.url) {
+      store.playMusic(firstSong.url)
+    }
+  }
+}, { immediate: true })
+
+// 监听 playResult 变化（兼容单首模式）
 watch(() => store.plan?.playResult?.url, (url) => {
-  console.log('[MusicPlayer] playResult.url changed:', url)
-  console.log('[MusicPlayer] store.playMusic exists:', typeof store.playMusic)
-  if (url) {
-    console.log('[MusicPlayer] calling store.playMusic...')
+  // 只有在没有 playlist 时才使用 playResult
+  if (url && !store.plan?.playlist) {
     store.playMusic(url)
-    console.log('[MusicPlayer] store.playMusic called')
   }
 }, { immediate: true })
 
 function togglePlay() {
   store.toggleAudio()
+}
+
+function playNext() {
+  store.playNext()
+}
+
+function playPrevious() {
+  store.playPrevious()
+}
+
+function playSongAt(index: number) {
+  store.playSongAt(index)
 }
 </script>
 
@@ -58,6 +99,10 @@ function togglePlay() {
       <div class="song-info">
         <div class="title">{{ currentSong.title }}</div>
         <div class="artist">{{ currentSong.artist }}</div>
+        <!-- 歌单进度指示 -->
+        <div v-if="playlist.length > 1" class="playlist-progress">
+          {{ currentIndex + 1 }} / {{ playlist.length }}
+        </div>
       </div>
 
       <!-- 进度条 -->
@@ -67,11 +112,11 @@ function togglePlay() {
 
       <!-- 控制按钮 -->
       <div class="controls">
-        <button class="ctrl-btn">⏮</button>
+        <button class="ctrl-btn" :disabled="!hasPrevious" @click="playPrevious">⏮</button>
         <button class="ctrl-btn play" @click="togglePlay">
           {{ isPlaying ? '⏸' : '▶' }}
         </button>
-        <button class="ctrl-btn">⏭</button>
+        <button class="ctrl-btn" :disabled="!hasNext" @click="playNext">⏭</button>
       </div>
     </div>
 
@@ -81,14 +126,18 @@ function togglePlay() {
 
     <!-- 播放列表 -->
     <div v-if="playlist.length > 1" class="playlist">
-      <div class="playlist-title">播放列表</div>
+      <div class="playlist-title">歌单 ({{ playlist.length }}首)</div>
       <div
-        v-for="(song, index) in playlist.slice(0, 5)"
+        v-for="(song, index) in playlist"
         :key="song.id"
         class="playlist-item"
+        :class="{ active: index === currentIndex }"
+        @click="playSongAt(index)"
       >
         <span class="index">{{ index + 1 }}</span>
-        <span class="name">{{ song.title }}</span>
+        <span class="name">{{ song.name || song.title }}</span>
+        <span class="artist">{{ song.artist }}</span>
+        <span v-if="index === currentIndex" class="playing-indicator">♪</span>
       </div>
     </div>
   </div>
@@ -217,5 +266,54 @@ function togglePlay() {
 
 .name {
   color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playlist-progress {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.playlist-item {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+  align-items: center;
+}
+
+.playlist-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.playlist-item.active {
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.1);
+}
+
+.playlist-item .artist {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.playing-indicator {
+  color: var(--accent);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.ctrl-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 </style>
