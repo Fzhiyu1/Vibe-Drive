@@ -8,6 +8,7 @@ import type {
 } from '@/types/api'
 import { vibeApi } from '@/services/api'
 import { useAnalyzeStream } from '@/composables/useSSE'
+import { useTTS } from '@/composables/useTTS'
 
 function generateSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
@@ -32,6 +33,9 @@ export const useVibeStore = defineStore('vibe', () => {
   const isPlaying = ref(false)
   const audioProgress = ref(0)
   const currentPlaylistIndex = ref(0)
+
+  // TTS 语音播报
+  const { isSpeaking: ttsSpeaking, speak: speakTTS, stop: stopTTS } = useTTS()
 
   // 音频事件监听
   audio.addEventListener('timeupdate', () => {
@@ -123,6 +127,10 @@ export const useVibeStore = defineStore('vibe', () => {
         case 'generateNarrative':
           plan.value = { ...plan.value, narrative: result }
           console.log('[vibeStore] 立即应用叙事:', result)
+          // 自动播放 TTS
+          if (result.text) {
+            speakTTS(result.text, { volume: result.volume ?? 0.8 })
+          }
           break
         default:
           console.log('[vibeStore] 未处理的工具结果:', toolName)
@@ -336,5 +344,9 @@ export const useVibeStore = defineStore('vibe', () => {
     playNext,
     playPrevious,
     playSongAt,
+    // TTS 控制
+    ttsSpeaking,
+    speakTTS,
+    stopTTS,
   }
 })

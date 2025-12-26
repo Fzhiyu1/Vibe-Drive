@@ -1,0 +1,15 @@
+{
+  "name": "vibe-drive-tts",
+  "version": "1.0.0",
+  "description": "Vibe Drive TTS 语音合成微服务",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "msedge-tts": "^2.0.3",
+    "cors": "^2.8.5"
+  }
+}

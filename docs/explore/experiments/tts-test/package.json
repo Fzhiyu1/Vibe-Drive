@@ -1,0 +1,13 @@
+{
+  "name": "tts-test",
+  "version": "1.0.0",
+  "description": "Edge TTS 语音合成测试",
+  "type": "module",
+  "scripts": {
+    "test": "node test.js",
+    "voices": "node list-voices.js"
+  },
+  "dependencies": {
+    "msedge-tts": "^2.0.3"
+  }
+}
