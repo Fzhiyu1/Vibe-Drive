@@ -22,8 +22,12 @@ public record AmbiencePlan(
     MusicRecommendation music,
 
     @Valid
-    @Description("当前播放的音乐信息（新方法）")
+    @Description("当前播放的音乐信息（单首模式）")
     PlayResult playResult,
+
+    @Valid
+    @Description("推荐的歌单列表（批量模式）")
+    Playlist playlist,
 
     @Valid
     @Description("氛围灯设置，L2专注模式下禁用动态效果，L3静默模式下为null")
@@ -75,6 +79,7 @@ public record AmbiencePlan(
                 id,
                 music,
                 playResult,
+                playlist,
                 null,  // 禁用灯光
                 narrative != null ? narrative.withReducedVolume() : null,
                 scent != null ? scent.withIntensity(Math.min(scent.intensity(), 3)) : null,
@@ -87,6 +92,7 @@ public record AmbiencePlan(
                 id,
                 music,
                 playResult,
+                playlist,
                 light != null ? light.forFocusMode() : null,  // 禁用动态效果
                 narrative,
                 scent,
@@ -104,6 +110,13 @@ public record AmbiencePlan(
      */
     public boolean hasMusic() {
         return music != null && !music.songs().isEmpty();
+    }
+
+    /**
+     * 判断是否有歌单
+     */
+    public boolean hasPlaylist() {
+        return playlist != null && playlist.size() > 0;
     }
 
     /**
@@ -139,6 +152,7 @@ public record AmbiencePlan(
             null,
             null,
             null,
+            null,
             SafetyMode.L3_SILENT,
             "高速行驶中，静默模式，不主动推荐",
             null
@@ -159,6 +173,7 @@ public record AmbiencePlan(
         private String id;
         private MusicRecommendation music;
         private PlayResult playResult;
+        private Playlist playlist;
         private LightSetting light;
         private Narrative narrative;
         private ScentSetting scent;
@@ -179,6 +194,11 @@ public record AmbiencePlan(
 
         public Builder playResult(PlayResult playResult) {
             this.playResult = playResult;
+            return this;
+        }
+
+        public Builder playlist(Playlist playlist) {
+            this.playlist = playlist;
             return this;
         }
 
@@ -218,7 +238,7 @@ public record AmbiencePlan(
         }
 
         public AmbiencePlan build() {
-            return new AmbiencePlan(id, music, playResult, light, narrative, scent, massage, safetyMode, reasoning, createdAt);
+            return new AmbiencePlan(id, music, playResult, playlist, light, narrative, scent, massage, safetyMode, reasoning, createdAt);
         }
     }
 }

@@ -16,8 +16,13 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 音乐推荐服务
@@ -29,6 +34,8 @@ public class MusicService {
 
     private static final Logger log = LoggerFactory.getLogger(MusicService.class);
     private static final int SEARCH_LIMIT = 20;
+    private static final int BATCH_SEARCH_LIMIT = 5;
+    private static final ExecutorService searchExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     @Value("${music-api.url:http://localhost:8081}")
     private String musicApiUrl;
@@ -234,6 +241,90 @@ public class MusicService {
             log.error("Failed to get play info: {}", e.getMessage());
             throw new RuntimeException("获取播放信息失败: " + e.getMessage(), e);
         }
+    }
+
+    // ==================== 批量方法 ====================
+
+    /**
+     * 批量搜索音乐（并行）
+     *
+     * @param keywords 搜索关键词列表（3-5个）
+     * @return 批量搜索结果
+     */
+    public BatchSearchResult batchSearch(List<String> keywords) {
+        log.info("Batch searching music: keywords={}", keywords);
+
+        List<CompletableFuture<Map.Entry<String, List<SongCandidate>>>> futures =
+            keywords.stream()
+                .map(keyword -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        SearchResult result = searchWithLimit(keyword, BATCH_SEARCH_LIMIT);
+                        return Map.entry(keyword, result.songs());
+                    } catch (Exception e) {
+                        log.warn("Search failed for keyword: {}", keyword, e);
+                        return Map.entry(keyword, List.<SongCandidate>of());
+                    }
+                }, searchExecutor))
+                .toList();
+
+        Map<String, List<SongCandidate>> results = new HashMap<>();
+        for (var future : futures) {
+            var entry = future.join();
+            results.put(entry.getKey(), entry.getValue());
+        }
+
+        int total = results.values().stream().mapToInt(List::size).sum();
+        log.info("Batch search completed: {} keywords, {} total candidates",
+                 keywords.size(), total);
+
+        return new BatchSearchResult(results, total);
+    }
+
+    /**
+     * 带限制的搜索
+     */
+    private SearchResult searchWithLimit(String keyword, int limit) {
+        String encodedKeyword = URLEncoder.encode(keyword, StandardCharsets.UTF_8);
+        String urlStr = musicApiUrl + "/api/music/search?keyword=" + encodedKeyword + "&limit=" + limit;
+
+        try {
+            java.net.URI uri = java.net.URI.create(urlStr);
+            String response = restTemplate.getForObject(uri, String.class);
+            return parseSearchResponse(response);
+        } catch (Exception e) {
+            log.error("Failed to search music: {}", e.getMessage());
+            throw new RuntimeException("音乐搜索服务不可用: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 批量获取播放信息（并行）
+     *
+     * @param ids 歌曲ID列表（3-5个）
+     * @return 播放结果列表
+     */
+    public List<PlayResult> batchPlay(List<String> ids) {
+        log.info("Batch getting play info: ids={}", ids);
+
+        List<CompletableFuture<PlayResult>> futures = ids.stream()
+            .map(id -> CompletableFuture.supplyAsync(() -> {
+                try {
+                    return play(id);
+                } catch (Exception e) {
+                    log.warn("Failed to get play info for id: {}", id, e);
+                    return null;
+                }
+            }, searchExecutor))
+            .toList();
+
+        List<PlayResult> results = futures.stream()
+            .map(CompletableFuture::join)
+            .filter(Objects::nonNull)
+            .filter(PlayResult::hasValidUrl)
+            .toList();
+
+        log.info("Batch play completed: {} requested, {} valid", ids.size(), results.size());
+        return results;
     }
 
     /**

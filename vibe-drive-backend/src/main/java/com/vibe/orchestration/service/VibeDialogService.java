@@ -10,6 +10,7 @@ import com.vibe.model.MassageSetting;
 import com.vibe.model.MusicRecommendation;
 import com.vibe.model.Narrative;
 import com.vibe.model.PlayResult;
+import com.vibe.model.Playlist;
 import com.vibe.model.ScentSetting;
 import com.vibe.model.ToolExecutionInfo;
 import com.vibe.model.enums.SafetyMode;
@@ -274,6 +275,7 @@ public class VibeDialogService {
                 .reasoning(reasoning)
                 .music(toolResults.music())
                 .playResult(toolResults.playResult())
+                .playlist(toolResults.playlist())
                 .light(toolResults.light())
                 .narrative(toolResults.narrative())
                 .scent(toolResults.scent())
@@ -287,6 +289,7 @@ public class VibeDialogService {
         private final ObjectMapper objectMapper;
         private final AtomicReference<MusicRecommendation> music = new AtomicReference<>();
         private final AtomicReference<PlayResult> playResult = new AtomicReference<>();
+        private final AtomicReference<Playlist> playlist = new AtomicReference<>();
         private final AtomicReference<LightSetting> light = new AtomicReference<>();
         private final AtomicReference<Narrative> narrative = new AtomicReference<>();
         private final AtomicReference<ScentSetting> scent = new AtomicReference<>();
@@ -309,6 +312,8 @@ public class VibeDialogService {
                     case "setScent" -> scent.set(objectMapper.readValue(resultJson, ScentSetting.class));
                     case "setMassage" -> massage.set(objectMapper.readValue(resultJson, MassageSetting.class));
                     case "searchMusic" -> log.debug("searchMusic result received (not stored)");
+                    case "batchSearchMusic" -> log.debug("batchSearchMusic result received (not stored)");
+                    case "batchPlayMusic" -> playlist.set(objectMapper.readValue(resultJson, Playlist.class));
                     default -> log.debug("Skip tool result parsing: toolName={}", toolName);
                 }
             } catch (Exception e) {
@@ -322,6 +327,10 @@ public class VibeDialogService {
 
         private PlayResult playResult() {
             return playResult.get();
+        }
+
+        private Playlist playlist() {
+            return playlist.get();
         }
 
         private LightSetting light() {

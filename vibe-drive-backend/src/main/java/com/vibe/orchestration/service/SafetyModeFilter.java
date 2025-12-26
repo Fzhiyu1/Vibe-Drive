@@ -38,6 +38,7 @@ public class SafetyModeFilter {
             plan.id(),
             plan.music(),
             plan.playResult(),
+            plan.playlist(),
             plan.light() != null ? plan.light().forFocusMode() : null,
             plan.narrative(),
             plan.scent(),
