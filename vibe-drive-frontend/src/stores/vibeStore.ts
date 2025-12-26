@@ -31,6 +31,7 @@ export const useVibeStore = defineStore('vibe', () => {
   const audio = new Audio()
   const isPlaying = ref(false)
   const audioProgress = ref(0)
+  const currentPlaylistIndex = ref(0)
 
   // 音频事件监听
   audio.addEventListener('timeupdate', () => {
@@ -41,6 +42,11 @@ export const useVibeStore = defineStore('vibe', () => {
   audio.addEventListener('ended', () => {
     isPlaying.value = false
     audioProgress.value = 0
+    // 自动播放下一首
+    const playlist = plan.value?.playlist
+    if (playlist && currentPlaylistIndex.value < playlist.songs.length - 1) {
+      playNext()
+    }
   })
 
   // ============ 计算属性 ============
@@ -210,6 +216,40 @@ export const useVibeStore = defineStore('vibe', () => {
     isPlaying.value = !isPlaying.value
   }
 
+  // ============ 歌单控制方法 ============
+  function playNext() {
+    const playlist = plan.value?.playlist
+    if (playlist && currentPlaylistIndex.value < playlist.songs.length - 1) {
+      currentPlaylistIndex.value++
+      const song = playlist.songs[currentPlaylistIndex.value]
+      if (song?.url) {
+        playMusic(song.url)
+      }
+    }
+  }
+
+  function playPrevious() {
+    const playlist = plan.value?.playlist
+    if (playlist && currentPlaylistIndex.value > 0) {
+      currentPlaylistIndex.value--
+      const song = playlist.songs[currentPlaylistIndex.value]
+      if (song?.url) {
+        playMusic(song.url)
+      }
+    }
+  }
+
+  function playSongAt(index: number) {
+    const playlist = plan.value?.playlist
+    if (playlist && index >= 0 && index < playlist.songs.length) {
+      currentPlaylistIndex.value = index
+      const song = playlist.songs[index]
+      if (song?.url) {
+        playMusic(song.url)
+      }
+    }
+  }
+
   return {
     // 状态
     sessionId,
@@ -224,6 +264,7 @@ export const useVibeStore = defineStore('vibe', () => {
     // 音频状态
     isPlaying,
     audioProgress,
+    currentPlaylistIndex,
     // 计算属性
     safetyMode,
     hasActivePlan,
@@ -238,5 +279,9 @@ export const useVibeStore = defineStore('vibe', () => {
     unlockAudio,
     playMusic,
     toggleAudio,
+    // 歌单控制
+    playNext,
+    playPrevious,
+    playSongAt,
   }
 })

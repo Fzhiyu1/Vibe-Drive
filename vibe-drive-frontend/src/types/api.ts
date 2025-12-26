@@ -98,6 +98,11 @@ export interface PlayResult {
   coverUrl?: string
 }
 
+export interface Playlist {
+  songs: PlayResult[]
+  currentIndex: number
+}
+
 export interface LightColor {
   hex: string
   temperature?: number // 色温 K
@@ -132,6 +137,7 @@ export interface AmbiencePlan {
   id: string
   music?: MusicRecommendation
   playResult?: PlayResult
+  playlist?: Playlist
   light?: LightSetting
   narrative?: Narrative
   scent?: ScentSetting
