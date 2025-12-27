@@ -4,9 +4,21 @@ import { useVibeStore } from '@/stores/vibeStore'
 
 const store = useVibeStore()
 const logContainer = ref<HTMLElement | null>(null)
+const inputText = ref('')
 
 function toggleExpand() {
   store.chainExpanded = !store.chainExpanded
+}
+
+function handleSend() {
+  if (!inputText.value.trim() || store.agentRunning) return
+  store.sendMessage(inputText.value)
+  inputText.value = ''
+}
+
+function handleQuickAnalyze() {
+  if (store.agentRunning) return
+  store.sendMessage('根据当前环境帮我编排氛围')
 }
 
 function formatTime(timestamp: number) {
@@ -29,6 +41,10 @@ function formatJson(obj: unknown): string {
   } catch {
     return String(obj)
   }
+}
+
+function getAgentLabel(agent?: string) {
+  return agent === 'master' ? 'MASTER' : agent === 'vibe' ? 'VIBE' : 'AGENT'
 }
 
 // 自动滚动到底部
@@ -55,12 +71,39 @@ watch(() => store.thinkingChain, async () => {
 
     <div v-if="store.chainExpanded" ref="logContainer" class="log-container">
       <template v-for="(step, index) in store.thinkingChain" :key="index">
+        <!-- 用户输入 -->
+        <div v-if="step.type === 'user_input'" class="log-block user-input">
+          <div class="log-header">
+            <span class="time">{{ formatTime(step.timestamp) }}</span>
+            <span class="prefix">[USER]</span>
+            <span class="label">{{ step.content }}</span>
+          </div>
+        </div>
+
+        <!-- AI 回复 -->
+        <div v-else-if="step.type === 'ai_response'" class="log-block ai-response">
+          <div class="log-header">
+            <span class="time">{{ formatTime(step.timestamp) }}</span>
+            <span class="prefix">[{{ getAgentLabel(step.agent) }}]</span>
+          </div>
+          <div class="log-content ai-text">{{ step.content }}</div>
+        </div>
+
+        <!-- 调用子智能体 -->
+        <div v-else-if="step.type === 'agent_call'" class="log-block agent-call">
+          <div class="log-header">
+            <span class="time">{{ formatTime(step.timestamp) }}</span>
+            <span class="prefix">[AGENT]</span>
+            <span class="label">→ 调用氛围智能体</span>
+          </div>
+        </div>
+
         <!-- Thinking -->
-        <div v-if="step.type === 'thinking'" class="log-block thinking">
+        <div v-else-if="step.type === 'thinking'" class="log-block thinking">
           <div class="log-header">
             <span class="time">{{ formatTime(step.timestamp) }}</span>
             <span class="prefix">[THINK]</span>
-            <span class="label">Agent 思考中...</span>
+            <span class="label">{{ getAgentLabel(step.agent) }} 思考中...</span>
           </div>
           <div class="log-content">{{ step.content }}<span class="cursor">▌</span></div>
         </div>
@@ -83,7 +126,7 @@ watch(() => store.thinkingChain, async () => {
           <div class="log-header">
             <span class="time">{{ formatTime(step.timestamp) }}</span>
             <span class="prefix">[DONE]</span>
-            <span class="label"><span class="tool-name">{{ step.toolName }}</span> 执行完成</span>
+            <span class="label"><span class="tool-name">{{ step.toolName }}</span> 完成</span>
           </div>
           <div v-if="step.toolOutput" class="log-content code">
             <span class="output-label">输出:</span>
@@ -111,8 +154,24 @@ watch(() => store.thinkingChain, async () => {
       </template>
 
       <div v-if="store.thinkingChain.length === 0" class="empty-log">
-        <span class="prompt">$</span> 等待 Agent 启动...
+        <span class="prompt">$</span> 输入消息开始对话...
       </div>
+    </div>
+
+    <!-- 输入区域 -->
+    <div v-if="store.chainExpanded" class="input-area">
+      <input
+        v-model="inputText"
+        placeholder="输入消息..."
+        :disabled="store.agentRunning"
+        @keydown.enter="handleSend"
+      />
+      <button class="quick-btn" @click="handleQuickAnalyze" :disabled="store.agentRunning">
+        ⚡ 编排
+      </button>
+      <button class="send-btn" @click="handleSend" :disabled="!inputText.trim() || store.agentRunning">
+        发送
+      </button>
     </div>
   </div>
 </template>
@@ -190,6 +249,9 @@ watch(() => store.thinkingChain, async () => {
 .log-block.tool-end { border-color: #4ec9b0; }
 .log-block.complete { border-color: #b5cea8; }
 .log-block.error { border-color: #f14c4c; }
+.log-block.user-input { border-color: #61afef; }
+.log-block.ai-response { border-color: #98c379; }
+.log-block.agent-call { border-color: #c678dd; }
 
 .log-header {
   display: flex;
@@ -213,6 +275,9 @@ watch(() => store.thinkingChain, async () => {
 .tool-end .prefix { color: #4ec9b0; }
 .complete .prefix { color: #b5cea8; }
 .error .prefix { color: #f14c4c; }
+.user-input .prefix { color: #61afef; }
+.ai-response .prefix { color: #98c379; }
+.agent-call .prefix { color: #c678dd; }
 
 .label { color: #d4d4d4; }
 
@@ -266,5 +331,68 @@ watch(() => store.thinkingChain, async () => {
 .prompt {
   color: #4ec9b0;
   margin-right: 0.5rem;
+}
+
+/* AI 回复文本 */
+.ai-text {
+  color: #98c379;
+  font-style: normal;
+}
+
+/* 输入区域 */
+.input-area {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #2d2d2d;
+  border-top: 1px solid #404040;
+}
+
+.input-area input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #404040;
+  border-radius: 4px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.input-area input:focus {
+  outline: none;
+  border-color: #4ec9b0;
+}
+
+.input-area input:disabled {
+  opacity: 0.5;
+}
+
+.input-area button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.quick-btn {
+  background: #c678dd;
+  color: white;
+}
+
+.send-btn {
+  background: #4ec9b0;
+  color: #1e1e1e;
+}
+
+.input-area button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input-area button:not(:disabled):hover {
+  filter: brightness(1.1);
 }
 </style>

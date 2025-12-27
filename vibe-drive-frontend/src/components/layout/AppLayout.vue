@@ -1,8 +1,38 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { useVibeStore } from '@/stores/vibeStore'
-import ChatPanel from '@/components/chat/ChatPanel.vue'
 
 const store = useVibeStore()
+
+// 拖拽调整高度
+const panelHeight = ref(200)
+const isDragging = ref(false)
+const MIN_HEIGHT = 80
+const MAX_HEIGHT = 600
+
+const panelStyle = computed(() => ({
+  height: store.chainExpanded ? `${panelHeight.value}px` : '40px'
+}))
+
+function startDrag(e: MouseEvent) {
+  if (!store.chainExpanded) return
+  isDragging.value = true
+  document.addEventListener('mousemove', onDrag)
+  document.addEventListener('mouseup', stopDrag)
+  e.preventDefault()
+}
+
+function onDrag(e: MouseEvent) {
+  if (!isDragging.value) return
+  const newHeight = window.innerHeight - e.clientY
+  panelHeight.value = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, newHeight))
+}
+
+function stopDrag() {
+  isDragging.value = false
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', stopDrag)
+}
 </script>
 
 <template>
@@ -31,18 +61,17 @@ const store = useVibeStore()
     <!-- 底部：思维链 -->
     <footer
       class="panel-bottom"
-      :class="{ expanded: store.chainExpanded }"
+      :class="{ expanded: store.chainExpanded, dragging: isDragging }"
+      :style="panelStyle"
     >
+      <!-- 拖拽手柄 -->
+      <div
+        v-if="store.chainExpanded"
+        class="resize-handle"
+        @mousedown="startDrag"
+      />
       <slot name="thinking" />
     </footer>
-
-    <!-- 对话按钮 -->
-    <button class="chat-toggle-btn" @click="store.toggleChatPanel">
-      💬
-    </button>
-
-    <!-- 对话面板 -->
-    <ChatPanel />
   </div>
 </template>
 
@@ -98,33 +127,30 @@ const store = useVibeStore()
 .panel-bottom {
   background-color: var(--bg-tertiary);
   border-top: 1px solid var(--border-color);
-  height: 80px;
-  transition: height var(--transition-normal);
+  transition: height 0.2s ease;
   overflow: hidden;
+  position: relative;
 }
 
-.panel-bottom.expanded {
-  height: 200px;
+.panel-bottom.dragging {
+  transition: none;
+  user-select: none;
 }
 
-.chat-toggle-btn {
-  position: fixed;
-  bottom: 100px;
-  right: 20px;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border: none;
+.resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  background: transparent;
+  z-index: 10;
+}
+
+.resize-handle:hover,
+.panel-bottom.dragging .resize-handle {
   background: var(--accent);
-  color: white;
-  font-size: 1.5rem;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  z-index: 999;
-  transition: transform 0.2s;
-}
-
-.chat-toggle-btn:hover {
-  transform: scale(1.1);
+  opacity: 0.5;
 }
 </style>
