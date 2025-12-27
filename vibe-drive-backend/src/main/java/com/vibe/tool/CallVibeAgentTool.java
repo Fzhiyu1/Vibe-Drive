@@ -1,41 +1,32 @@
 package com.vibe.tool;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vibe.context.SessionContext;
-import com.vibe.model.AmbiencePlan;
 import com.vibe.model.Environment;
 import com.vibe.model.enums.*;
-import com.vibe.orchestration.dto.VibeDialogRequest;
-import com.vibe.orchestration.dto.VibeDialogResult;
-import com.vibe.orchestration.service.VibeDialogService;
+import com.vibe.orchestration.VibeTaskManager;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.TimeUnit;
-
 /**
- * 调用氛围智能体工具
- * 根据环境数据调用氛围智能体进行自动编排
+ * 调用氛围智能体工具（异步版本）
+ * 启动异步氛围编排任务，立即返回任务 ID
  */
 @Component
 public class CallVibeAgentTool {
 
     private static final Logger log = LoggerFactory.getLogger(CallVibeAgentTool.class);
-    private static final int TIMEOUT_SECONDS = 120;
 
-    private final VibeDialogService vibeDialogService;
-    private final ObjectMapper objectMapper;
+    private final VibeTaskManager vibeTaskManager;
 
-    public CallVibeAgentTool(VibeDialogService vibeDialogService, ObjectMapper objectMapper) {
-        this.vibeDialogService = vibeDialogService;
-        this.objectMapper = objectMapper;
+    public CallVibeAgentTool(VibeTaskManager vibeTaskManager) {
+        this.vibeTaskManager = vibeTaskManager;
     }
 
     @Tool("""
-        调用氛围智能体进行自动编排。根据环境数据自动推荐音乐、灯光、香氛、按摩等。
+        异步启动氛围智能体进行自动编排。立即返回任务 ID，编排结果通过 SSE 实时推送。
 
         参数说明：
         - gpsTag: HIGHWAY/TUNNEL/BRIDGE/URBAN/SUBURBAN/MOUNTAIN/COASTAL/PARKING
@@ -64,20 +55,16 @@ public class CallVibeAgentTool {
             Environment env = buildEnvironment(gpsTag, weather, speed, userMood,
                                                timeOfDay, passengerCount, routeType);
 
-            log.info("调用氛围智能体: sessionId={}, env={}", sessionId, env);
+            log.info("异步启动氛围智能体: sessionId={}, env={}", sessionId, env);
 
-            VibeDialogRequest request = VibeDialogRequest.of(sessionId, env);
-            VibeDialogResult result = vibeDialogService.executeDialogAsync(request)
-                .get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            // 启动异步任务（自动终止旧任务）
+            String taskId = vibeTaskManager.startTask(sessionId, env);
 
-            if (result.success()) {
-                return formatResult(result.plan());
-            } else {
-                return "氛围编排失败: " + result.errorMessage();
-            }
+            // 立即返回
+            return "已开始编排，任务ID: " + taskId;
         } catch (Exception e) {
-            log.error("调用氛围智能体失败: sessionId={}", sessionId, e);
-            return "调用氛围智能体失败: " + e.getMessage();
+            log.error("启动氛围智能体失败: sessionId={}", sessionId, e);
+            return "启动氛围智能体失败: " + e.getMessage();
         }
     }
 
@@ -103,19 +90,6 @@ public class CallVibeAgentTool {
             return Enum.valueOf(enumClass, value.toUpperCase().trim());
         } catch (IllegalArgumentException e) {
             return defaultValue;
-        }
-    }
-
-    private String formatResult(AmbiencePlan plan) {
-        if (plan == null) {
-            return "{\"error\": \"氛围编排完成，但未生成方案\"}";
-        }
-
-        try {
-            return objectMapper.writeValueAsString(plan);
-        } catch (Exception e) {
-            log.error("序列化 AmbiencePlan 失败", e);
-            return "{\"error\": \"序列化失败: " + e.getMessage() + "\"}";
         }
     }
 }
