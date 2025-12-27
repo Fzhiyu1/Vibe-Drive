@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useVibeStore } from '@/stores/vibeStore'
+import ChatPanel from '@/components/chat/ChatPanel.vue'
 
 const store = useVibeStore()
 </script>
@@ -34,6 +35,14 @@ const store = useVibeStore()
     >
       <slot name="thinking" />
     </footer>
+
+    <!-- 对话按钮 -->
+    <button class="chat-toggle-btn" @click="store.toggleChatPanel">
+      💬
+    </button>
+
+    <!-- 对话面板 -->
+    <ChatPanel />
   </div>
 </template>
 
@@ -96,5 +105,26 @@ const store = useVibeStore()
 
 .panel-bottom.expanded {
   height: 200px;
+}
+
+.chat-toggle-btn {
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 999;
+  transition: transform 0.2s;
+}
+
+.chat-toggle-btn:hover {
+  transform: scale(1.1);
 }
 </style>

@@ -9,6 +9,7 @@ import type {
 } from '@/types/api'
 
 const API_BASE = '/api/vibe'
+const MASTER_API_BASE = '/api/master'
 
 async function request<T>(
   endpoint: string,
@@ -72,5 +73,86 @@ export const vibeApi = {
       body: JSON.stringify({ description }),
     })
     return response.json()
+  },
+}
+
+// ============ 主智能体 API ============
+
+export interface MasterChatCallbacks {
+  onToken?: (text: string) => void
+  onToolStart?: (toolName: string, input: unknown) => void
+  onToolEnd?: (toolName: string, result: string) => void
+  onComplete?: () => void
+  onError?: (code: string, message: string) => void
+}
+
+export const masterApi = {
+  /**
+   * 流式对话
+   */
+  async chatStream(
+    sessionId: string,
+    message: string,
+    callbacks: MasterChatCallbacks
+  ): Promise<void> {
+    const url = `${MASTER_API_BASE}/chat/stream?sessionId=${encodeURIComponent(sessionId)}`
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    })
+
+    if (!response.ok) {
+      callbacks.onError?.('HTTP_ERROR', `HTTP ${response.status}`)
+      return
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      callbacks.onError?.('NO_BODY', 'No response body')
+      return
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          const eventType = line.slice(6).trim()
+          continue
+        }
+        if (line.startsWith('data:')) {
+          const data = line.slice(5).trim()
+          if (!data) continue
+
+          try {
+            const parsed = JSON.parse(data)
+            // 根据事件类型处理
+            if (parsed.text !== undefined) {
+              callbacks.onToken?.(parsed.text)
+            } else if (parsed.toolName && parsed.result !== undefined) {
+              callbacks.onToolEnd?.(parsed.toolName, parsed.result)
+            } else if (parsed.toolName && parsed.input !== undefined) {
+              callbacks.onToolStart?.(parsed.toolName, parsed.input)
+            } else if (parsed.code) {
+              callbacks.onError?.(parsed.code, parsed.message || 'Unknown error')
+            }
+          } catch {
+            // 忽略解析错误
+          }
+        }
+      }
+    }
+
+    callbacks.onComplete?.()
   },
 }

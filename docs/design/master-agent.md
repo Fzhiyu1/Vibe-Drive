@@ -41,8 +41,7 @@
 │   ├── MusicSeedTool (音乐种子)
 │   ├── LightTool (灯光控制)
 │   ├── ScentTool (香氛控制)
-│   ├── MassageTool (按摩控制)
-│   └── NarrativeTool (叙事生成)
+│   └── MassageTool (按摩控制)
 │
 ├── 语音交互工具
 │   └── SayTool (语音输出)
@@ -71,19 +70,38 @@ public class SayTool {
 }
 ```
 
+**System Prompt 要求**：
+```
+重要：你必须使用 say 工具来回复用户，不要直接输出文本。
+只有 say 工具的内容会被转为语音播放。
+```
+
 ### 2.3 CallVibeAgentTool（调用氛围智能体）
+
+**异步调用**：不阻塞主智能体，结果进入消息队列。
 
 ```java
 @Component
 public class CallVibeAgentTool {
 
-    @Tool("调用氛围智能体进行自动编排。传入环境数据，返回编排结果。")
-    public AmbiencePlan callVibeAgent(
-        @P("环境数据") Environment environment
+    @Tool("异步调用氛围智能体进行自动编排。结果会通过消息队列返回。")
+    public String callVibeAgent(
+        @P("环境数据，由AI根据用户描述生成") Environment environment
     ) {
-        return vibeAgent.analyze(environment);
+        // 异步执行
+        vibeAgentExecutor.submitAsync(environment);
+        return "已开始氛围编排，请稍候...";
     }
 }
+```
+
+**流程**：
+```
+1. 主智能体调用 callVibeAgent(env)
+2. 异步提交任务，立即返回
+3. 氛围智能体后台执行
+4. 完成后结果进入消息队列
+5. 主智能体空闲时处理结果
 ```
 
 ---
@@ -136,6 +154,15 @@ public class ToolInterceptor {
         return joinPoint.proceed();
     }
 }
+```
+
+**完整处理流程**：
+```
+1. 用户消息进入队列
+2. AOP 检测到新消息，抛出 UserInterruptException
+3. 上层捕获异常，保存当前任务状态
+4. 从队列取出用户消息，优先处理
+5. 用户消息处理完成后，恢复之前的任务
 ```
 
 ---

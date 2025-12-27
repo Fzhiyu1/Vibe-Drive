@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 
-const WHISPER_API = 'http://localhost:9000/asr'
+// 通过 Vite 代理转发，避免 CORS 问题
+const WHISPER_API = '/asr'
 
 export function useVoiceInput() {
   const isRecording = ref(false)

@@ -5,8 +5,9 @@ import type {
   AmbiencePlan,
   ThinkingStep,
   SafetyMode,
+  ChatMessage,
 } from '@/types/api'
-import { vibeApi } from '@/services/api'
+import { vibeApi, masterApi } from '@/services/api'
 import { useAnalyzeStream } from '@/composables/useSSE'
 import { useTTS } from '@/composables/useTTS'
 
@@ -27,6 +28,11 @@ export const useVibeStore = defineStore('vibe', () => {
   const theme = ref<'light' | 'dark'>('light')
   const demoMode = ref(false)
   const chainExpanded = ref(false)
+
+  // 对话状态
+  const chatMessages = ref<ChatMessage[]>([])
+  const chatPanelOpen = ref(false)
+  const chatRunning = ref(false)
 
   // ============ 音频管理 ============
   const audio = new Audio()
@@ -248,17 +254,63 @@ export const useVibeStore = defineStore('vibe', () => {
   }
 
   // 发送用户消息（语音输入）
-  function sendMessage(text: string) {
-    if (!text.trim()) return
+  async function sendMessage(text: string) {
+    if (!text.trim() || chatRunning.value) return
 
-    // 添加用户消息到思维链
-    addThinkingStep({
-      type: 'user',
-      content: text
+    // 添加用户消息
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: Date.now(),
+    }
+    chatMessages.value.push(userMsg)
+
+    // 创建 AI 消息占位
+    const aiMsg: ChatMessage = {
+      id: `msg-${Date.now()}-ai`,
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+      toolCalls: [],
+    }
+    chatMessages.value.push(aiMsg)
+
+    chatRunning.value = true
+
+    await masterApi.chatStream(sessionId.value, text, {
+      onToken: (token) => {
+        aiMsg.content += token
+      },
+      onToolStart: (toolName, input) => {
+        aiMsg.toolCalls?.push({ toolName, input })
+      },
+      onToolEnd: (toolName, result) => {
+        const call = aiMsg.toolCalls?.find(c => c.toolName === toolName)
+        if (call) call.output = result
+        // 处理 say 工具 - 触发 TTS
+        if (toolName === 'say' && result) {
+          speakTTS(result, { volume: 0.8 })
+        }
+        // 应用其他工具结果
+        applyToolResult(toolName, result)
+      },
+      onComplete: () => {
+        chatRunning.value = false
+      },
+      onError: (code, message) => {
+        aiMsg.content += `\n[错误: ${message}]`
+        chatRunning.value = false
+      },
     })
+  }
 
-    // TODO: 调用主智能体 API
-    console.log('[vibeStore] 用户消息:', text)
+  function toggleChatPanel() {
+    chatPanelOpen.value = !chatPanelOpen.value
+  }
+
+  function clearChatMessages() {
+    chatMessages.value = []
   }
 
   // ============ 音频控制方法 ============
@@ -363,5 +415,11 @@ export const useVibeStore = defineStore('vibe', () => {
     ttsSpeaking,
     speakTTS,
     stopTTS,
+    // 对话控制
+    chatMessages,
+    chatPanelOpen,
+    chatRunning,
+    toggleChatPanel,
+    clearChatMessages,
   }
 })

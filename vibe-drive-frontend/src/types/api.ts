@@ -244,3 +244,19 @@ export interface ThinkingStep {
   toolInput?: unknown
   toolOutput?: string
 }
+
+// ============ 主智能体对话类型 ============
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: number
+  toolCalls?: ChatToolCall[]
+}
+
+export interface ChatToolCall {
+  toolName: string
+  input: unknown
+  output?: string
+}
