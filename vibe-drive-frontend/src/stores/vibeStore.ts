@@ -365,13 +365,28 @@ export const useVibeStore = defineStore('vibe', () => {
         // 主智能体的 thinking（暂不处理）
       },
       onToolStart: (toolName, input) => {
+        // 解析 input（可能是 JSON 字符串）
+        let parsedInput = input
+        if (typeof input === 'string') {
+          try {
+            parsedInput = JSON.parse(input)
+          } catch {
+            // 保持原样
+          }
+        }
+
+        // say 工具：立即触发 TTS，不等 tool_end
+        if (toolName === 'say' && parsedInput?.text) {
+          speakTTS(parsedInput.text, { volume: 0.8 })
+        }
+
         if (toolName === 'callVibeAgent') {
           addThinkingStep({
             type: 'agent_call',
             content: '调用氛围智能体',
             agent: 'master',
             toolName,
-            toolInput: input
+            toolInput: parsedInput
           })
         } else {
           addThinkingStep({
@@ -379,20 +394,19 @@ export const useVibeStore = defineStore('vibe', () => {
             content: `调用 ${toolName}`,
             agent: 'master',
             toolName,
-            toolInput: input
+            toolInput: parsedInput
           })
         }
       },
       onToolEnd: (toolName, result) => {
         if (toolName === 'say') {
-          // say 工具 → ai_response
+          // say 工具 → ai_response（TTS 已在 tool_start 触发，这里不再调用）
           addThinkingStep({
             type: 'ai_response',
             content: result,
             agent: 'master',
             toolName
           })
-          speakTTS(result, { volume: 0.8 })
         } else {
           addThinkingStep({
             type: 'tool_end',
