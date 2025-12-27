@@ -3,13 +3,15 @@ package com.vibe.orchestration.service;
 import com.vibe.agent.MasterAgent;
 import com.vibe.agent.MasterAgentFactory;
 import com.vibe.context.SessionContext;
+import com.vibe.orchestration.VibeTaskManager;
 import com.vibe.orchestration.callback.MasterStreamCallback;
+import com.vibe.orchestration.dto.VibeMessage;
 import dev.langchain4j.service.TokenStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.List;
 
 /**
  * 主智能体对话服务
@@ -21,9 +23,11 @@ public class MasterDialogService {
     private static final Logger log = LoggerFactory.getLogger(MasterDialogService.class);
 
     private final MasterAgentFactory agentFactory;
+    private final VibeTaskManager vibeTaskManager;
 
-    public MasterDialogService(MasterAgentFactory agentFactory) {
+    public MasterDialogService(MasterAgentFactory agentFactory, VibeTaskManager vibeTaskManager) {
         this.agentFactory = agentFactory;
+        this.vibeTaskManager = vibeTaskManager;
     }
 
     /**
@@ -33,12 +37,18 @@ public class MasterDialogService {
     public void executeChat(String sessionId, String userMessage, MasterStreamCallback callback) {
         log.info("开始主智能体对话: sessionId={}, message={}", sessionId, userMessage);
 
+        // 1. 检查消息队列（氛围任务完成/失败通知）
+        List<VibeMessage> vibeMessages = vibeTaskManager.pollMessages(sessionId);
+
+        // 2. 构建增强的用户消息
+        String enhancedMessage = buildEnhancedMessage(userMessage, vibeMessages);
+
         // 设置会话上下文（在回调中清除）
         SessionContext.setSessionId(sessionId);
 
         try {
             MasterAgent agent = agentFactory.createAgent();
-            TokenStream tokenStream = agent.chat(userMessage, sessionId);
+            TokenStream tokenStream = agent.chat(enhancedMessage, sessionId);
 
             tokenStream
                 .onPartialResponse(callback::onTextDelta)
@@ -73,5 +83,30 @@ public class MasterDialogService {
             SessionContext.clear();
             callback.onError(e);
         }
+    }
+
+    /**
+     * 构建增强的用户消息（注入氛围任务完成通知）
+     */
+    private String buildEnhancedMessage(String userMessage, List<VibeMessage> vibeMessages) {
+        if (vibeMessages == null || vibeMessages.isEmpty()) {
+            return userMessage;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("[系统通知] ");
+
+        for (VibeMessage msg : vibeMessages) {
+            switch (msg) {
+                case VibeMessage.Success s -> sb.append("氛围编排已完成。");
+                case VibeMessage.Failed f -> sb.append("氛围编排失败: ").append(f.error()).append("。");
+                case VibeMessage.Cancelled c -> sb.append("氛围编排已取消。");
+            }
+        }
+
+        sb.append("\n\n[用户消息] ").append(userMessage);
+
+        log.info("注入氛围消息: count={}", vibeMessages.size());
+        return sb.toString();
     }
 }
