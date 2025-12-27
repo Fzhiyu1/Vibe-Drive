@@ -51,7 +51,7 @@ class ToolIntegrationTest {
     @DisplayName("NarrativeTool 应该正确生成叙事")
     void narrativeToolShouldGenerateNarrative() {
         Narrative result = narrativeTool.generateNarrative(
-            "midnight", "rainy", "highway", "tired", "夜空中最亮的星", "comfort");
+            "夜色温柔，愿你归途平安", "calm");
 
         assertThat(result).isNotNull();
         assertThat(result.text()).isNotBlank();
@@ -78,10 +78,9 @@ class ToolIntegrationTest {
             "#87CEEB", "#ADD8E6", 50, "BREATHING", 0.3, 1.5);
         assertThat(light).isNotNull();
 
-        // 3. 生成叙事（使用推荐的第一首歌）
-        String currentSong = music.songs().get(0).title();
+        // 3. 生成叙事
         Narrative narrative = narrativeTool.generateNarrative(
-            timeOfDay, weather, gpsTag, mood, currentSong, null);
+            "海风轻拂，享受这份宁静", "calm");
         assertThat(narrative.text()).isNotBlank();
     }
 }
