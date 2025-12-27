@@ -6,6 +6,8 @@ import com.vibe.model.PlayResult;
 import com.vibe.model.Playlist;
 import com.vibe.model.SearchResult;
 import com.vibe.service.MusicService;
+import com.vibe.service.PlaylistService;
+import com.vibe.context.SessionContext;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import org.springframework.stereotype.Component;
@@ -20,9 +22,11 @@ import java.util.List;
 public class MusicTool {
 
     private final MusicService musicService;
+    private final PlaylistService playlistService;
 
-    public MusicTool(MusicService musicService) {
+    public MusicTool(MusicService musicService, PlaylistService playlistService) {
         this.musicService = musicService;
+        this.playlistService = playlistService;
     }
 
     /**
@@ -122,6 +126,14 @@ public class MusicTool {
         if (ids.size() > 15) {
             ids = ids.subList(0, 15);
         }
-        return new Playlist(musicService.batchPlay(ids));
+        Playlist playlist = new Playlist(musicService.batchPlay(ids));
+
+        // 同步到 PlaylistService
+        String sessionId = SessionContext.getSessionId();
+        if (sessionId != null) {
+            playlistService.setPlaylist(sessionId, playlist);
+        }
+
+        return playlist;
     }
 }

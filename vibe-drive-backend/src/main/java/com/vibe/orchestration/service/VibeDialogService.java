@@ -18,6 +18,7 @@ import com.vibe.orchestration.callback.VibeStreamCallback;
 import com.vibe.orchestration.dto.VibeDialogRequest;
 import com.vibe.orchestration.dto.VibeDialogResult;
 import com.vibe.orchestration.dto.VibeLoopState;
+import com.vibe.orchestration.CancellationToken;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.service.TokenStream;
 import org.slf4j.Logger;
@@ -65,6 +66,13 @@ public class VibeDialogService {
      * 执行对话（流式，公共入口）
      */
     public void executeDialog(VibeDialogRequest request, VibeStreamCallback callback) {
+        executeDialog(request, callback, null);
+    }
+
+    /**
+     * 执行对话（流式，支持取消）
+     */
+    public void executeDialog(VibeDialogRequest request, VibeStreamCallback callback, CancellationToken cancellationToken) {
         // 1. 计算安全模式
         SafetyMode safetyMode = SafetyMode.fromSpeed(request.environment().speed());
         log.info("开始对话: sessionId={}, safetyMode={}", request.sessionId(), safetyMode);
@@ -84,7 +92,10 @@ public class VibeDialogService {
 
         // 3. 开始递归
         try {
-            executeTurn(request, callback, state, toolResults);
+            executeTurn(request, callback, state, toolResults, cancellationToken);
+        } catch (CancellationToken.CancelledException e) {
+            log.info("对话已取消: sessionId={}", request.sessionId());
+            // 取消时不调用 onError，由 VibeTaskManager 处理
         } catch (Exception e) {
             log.error("对话执行异常: sessionId={}", request.sessionId(), e);
             callback.onError(e);
@@ -163,7 +174,14 @@ public class VibeDialogService {
             VibeDialogRequest request,
             VibeStreamCallback callback,
             VibeLoopState state,
-            VibeToolResults toolResults) {
+            VibeToolResults toolResults,
+            CancellationToken cancellationToken) {
+
+        // 0. 取消检查
+        if (cancellationToken != null && cancellationToken.isCancelled()) {
+            log.info("任务已取消，跳过执行: sessionId={}, depth={}", request.sessionId(), state.depth());
+            return;
+        }
 
         int depth = state.depth();
         log.info("执行对话轮次: sessionId={}, depth={}, elapsed={}ms",
@@ -187,8 +205,10 @@ public class VibeDialogService {
                 ? promptAssembler.assembleUserPrompt(request.environment(), request.userPreferences())
                 : "请基于已经获得的工具结果，输出最终的氛围推荐理由（简短），不要再调用任何工具。";
 
-        // 3. 调用 Agent（使用 vibe- 前缀隔离氛围智能体的对话历史）
-        String vibeMemoryId = "vibe-" + request.sessionId();
+        // 3. 调用 Agent（每个任务使用独立的 memoryId，避免取消后对话历史污染）
+        String vibeMemoryId = request.taskId() != null
+                ? "vibe-" + request.taskId()
+                : "vibe-" + request.sessionId();
         TokenStream tokenStream = agent.analyze(prompt, vibeMemoryId);
 
         // 4. 流式响应处理
@@ -200,6 +220,11 @@ public class VibeDialogService {
         tokenStream
                 .onPartialResponse(callback::onTextDelta)
                 .beforeToolExecution(before -> {
+                    // 工具执行前检查取消状态
+                    if (cancellationToken != null && cancellationToken.isCancelled()) {
+                        log.info("任务已取消，跳过工具执行: toolName={}", before.request().name());
+                        return;
+                    }
                     hasToolCall.set(true);
                     turnStateRef.updateAndGet(VibeLoopState::incrementToolCallCount);
                     callback.onStateUpdate(turnStateRef.get());
@@ -240,12 +265,18 @@ public class VibeDialogService {
                     && !response.aiMessage().text().isBlank();
 
             if (hasToolCall.get() && !hasFinalText) {
+                // 递归前检查取消状态
+                if (cancellationToken != null && cancellationToken.isCancelled()) {
+                    log.info("任务已取消，跳过递归: sessionId={}", request.sessionId());
+                    return;
+                }
+
                 // 有工具调用，递归继续
                 log.info("检测到工具调用，递归继续: sessionId={}, nextDepth={}",
                         request.sessionId(), depth + 1);
 
                 VibeLoopState nextState = turnStateRef.get().incrementDepth();
-                executeTurn(request, callback, nextState, toolResults);
+                executeTurn(request, callback, nextState, toolResults, cancellationToken);
             } else {
                 // 无工具调用，对话结束
                 log.info("对话完成: sessionId={}, totalDepth={}, elapsed={}ms",

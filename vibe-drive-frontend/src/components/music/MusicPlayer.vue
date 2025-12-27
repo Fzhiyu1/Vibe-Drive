@@ -48,16 +48,8 @@ const hasPrevious = computed(() => currentIndex.value > 0)
 const isPlaying = computed(() => store.isPlaying)
 const progress = computed(() => store.audioProgress)
 
-// 监听 playlist 变化，自动播放第一首
-watch(() => store.plan?.playlist, (newPlaylist) => {
-  if (newPlaylist && newPlaylist.songs.length > 0) {
-    store.currentPlaylistIndex = 0
-    const firstSong = newPlaylist.songs[0]
-    if (firstSong?.url) {
-      store.playMusic(firstSong.url)
-    }
-  }
-}, { immediate: true })
+// 注意：播放逻辑已在 vibeStore 的 applyToolResult 中处理
+// 这里不再监听 playlist 变化自动播放，避免重复触发
 
 // 监听 playResult 变化（兼容单首模式）
 watch(() => store.plan?.playResult?.url, (url) => {

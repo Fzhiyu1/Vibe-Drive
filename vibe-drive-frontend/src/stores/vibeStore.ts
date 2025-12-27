@@ -177,8 +177,8 @@ export const useVibeStore = defineStore('vibe', () => {
         case 'batchPlayMusic':
           plan.value = { ...plan.value, playlist: result }
           currentPlaylistIndex.value = 0
-          // 自动播放第一首
-          if (result.songs?.length > 0 && result.songs[0].url) {
+          // 只在当前没有播放时才自动播放第一首
+          if (!isPlaying.value && result.songs?.length > 0 && result.songs[0].url) {
             playMusic(result.songs[0].url)
           }
           console.log('[vibeStore] 立即应用歌单:', result)
@@ -228,6 +228,60 @@ export const useVibeStore = defineStore('vibe', () => {
             if (result.narrative.text) {
               speakTTS(result.narrative.text, { volume: result.narrative.volume ?? 0.8 })
             }
+          }
+          break
+        // 播放列表控制工具
+        case 'pauseMusic':
+          if (result.action === 'pause') {
+            audio.pause()
+            isPlaying.value = false
+            console.log('[vibeStore] 暂停音乐')
+          }
+          break
+        case 'resumeMusic':
+          if (result.action === 'resume') {
+            audio.play()
+            isPlaying.value = true
+            console.log('[vibeStore] 继续播放')
+          }
+          break
+        case 'playAt':
+          if (result.action === 'playAt' && result.song?.url) {
+            currentPlaylistIndex.value = result.index
+            playMusic(result.song.url)
+            console.log('[vibeStore] 播放指定歌曲:', result.song.name)
+          }
+          break
+        case 'removeFromPlaylist':
+          if (result.action === 'remove' && plan.value?.playlist?.songs) {
+            const newSongs = [...plan.value.playlist.songs]
+            newSongs.splice(result.index, 1)
+            plan.value = { ...plan.value, playlist: { ...plan.value.playlist, songs: newSongs } }
+            console.log('[vibeStore] 删除歌曲:', result.index)
+          }
+          break
+        case 'clearPlaylist':
+          if (result.action === 'clear') {
+            audio.pause()
+            audio.src = ''
+            isPlaying.value = false
+            if (plan.value) {
+              plan.value = { ...plan.value, playlist: undefined }
+            }
+            console.log('[vibeStore] 清空播放列表')
+          }
+          break
+        case 'addToPlaylist':
+          if (result.action === 'add' && result.song) {
+            if (!plan.value) {
+              plan.value = {} as AmbiencePlan
+            }
+            const currentSongs = plan.value.playlist?.songs || []
+            plan.value = {
+              ...plan.value,
+              playlist: { songs: [...currentSongs, result.song], currentIndex: plan.value.playlist?.currentIndex || 0 }
+            }
+            console.log('[vibeStore] 添加歌曲到播放列表:', result.song.name)
           }
           break
         default:
@@ -415,8 +469,8 @@ export const useVibeStore = defineStore('vibe', () => {
             toolName,
             toolOutput: result
           })
-          // 应用工具结果（跳过非 JSON）
-          if (toolName !== 'getProjectIntro') {
+          // 应用工具结果（跳过非 JSON 工具）
+          if (toolName !== 'getProjectIntro' && toolName !== 'getEnvironment' && toolName !== 'setEnvironment') {
             applyToolResult(toolName, result)
           }
         }

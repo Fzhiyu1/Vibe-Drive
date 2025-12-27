@@ -63,7 +63,8 @@ public class VibeTaskManager {
         // 2. 创建新任务
         String taskId = generateTaskId();
         CompletableFuture<Void> future = new CompletableFuture<>();
-        VibeTask task = new VibeTask(taskId, sessionId, future, Instant.now());
+        CancellationToken cancellationToken = new CancellationToken();
+        VibeTask task = new VibeTask(taskId, sessionId, future, cancellationToken, Instant.now());
 
         currentTasks.put(sessionId, task);
         log.info("启动氛围任务: taskId={}, sessionId={}", taskId, sessionId);
@@ -81,6 +82,9 @@ public class VibeTaskManager {
         VibeTask task = currentTasks.remove(sessionId);
         if (task != null) {
             log.info("终止氛围任务: taskId={}, sessionId={}", task.taskId(), sessionId);
+
+            // 设置取消标志（关键：让正在执行的任务知道已被取消）
+            task.cancellationToken().cancel();
             task.future().cancel(true);
 
             // 推送取消事件
@@ -121,18 +125,23 @@ public class VibeTaskManager {
     private void executeTask(VibeTask task, Environment env) {
         String sessionId = task.sessionId();
         String taskId = task.taskId();
+        CancellationToken cancellationToken = task.cancellationToken();
 
         try {
-            VibeDialogRequest request = VibeDialogRequest.of(sessionId, env);
+            VibeDialogRequest request = VibeDialogRequest.of(sessionId, taskId, env);
 
             vibeDialogService.executeDialog(request, new VibeStreamCallback() {
                 @Override
                 public void onTextDelta(String text) {
+                    // 取消检查
+                    if (cancellationToken.isCancelled()) return;
                     // 可选：推送思考过程
                 }
 
                 @Override
                 public void onToolStart(String toolName, Object toolInput) {
+                    // 取消检查
+                    if (cancellationToken.isCancelled()) return;
                     publishEvent(sessionId, "vibe_tool_start", Map.of(
                         "taskId", taskId,
                         "toolName", toolName,
@@ -142,6 +151,11 @@ public class VibeTaskManager {
 
                 @Override
                 public void onToolComplete(String toolName, String result) {
+                    // 取消检查：不推送已取消任务的事件
+                    if (cancellationToken.isCancelled()) {
+                        log.info("任务已取消，跳过工具完成事件: taskId={}, toolName={}", taskId, toolName);
+                        return;
+                    }
                     publishEvent(sessionId, "vibe_tool_end", Map.of(
                         "taskId", taskId,
                         "toolName", toolName,
@@ -214,7 +228,7 @@ public class VibeTaskManager {
                         "mode", mode.name()
                     ));
                 }
-            });
+            }, cancellationToken);
 
         } catch (Exception e) {
             log.error("执行氛围任务异常: taskId={}, sessionId={}", taskId, sessionId, e);
@@ -289,6 +303,7 @@ public class VibeTaskManager {
         String taskId,
         String sessionId,
         CompletableFuture<Void> future,
+        CancellationToken cancellationToken,
         Instant startTime
     ) {}
 }
