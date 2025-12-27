@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type {
   Environment,
@@ -8,6 +8,7 @@ import type {
 } from '@/types/api'
 import { vibeApi, masterApi } from '@/services/api'
 import { useAnalyzeStream } from '@/composables/useSSE'
+import { useVibeEvents } from '@/composables/useVibeEvents'
 import { useTTS } from '@/composables/useTTS'
 
 function generateSessionId(): string {
@@ -51,6 +52,65 @@ export const useVibeStore = defineStore('vibe', () => {
     if (playlist && currentPlaylistIndex.value < playlist.songs.length - 1) {
       playNext()
     }
+  })
+
+  // ============ 氛围事件监听 ============
+  const vibeEvents = useVibeEvents()
+
+  // 连接氛围事件
+  function connectVibeEvents() {
+    vibeEvents.connect(sessionId.value, {
+      onToolStart: (taskId, toolName, input) => {
+        addThinkingStep({
+          type: 'tool_start',
+          content: `调用 ${toolName}`,
+          agent: 'vibe',
+          toolName,
+          toolInput: input
+        })
+      },
+      onToolEnd: (taskId, toolName, result) => {
+        addThinkingStep({
+          type: 'tool_end',
+          content: `${toolName} 完成`,
+          agent: 'vibe',
+          toolName,
+          toolOutput: result
+        })
+        // 立即应用工具结果
+        applyToolResult(toolName, result)
+      },
+      onComplete: (taskId, completedPlan) => {
+        addThinkingStep({
+          type: 'complete',
+          content: '氛围编排完成',
+          agent: 'vibe'
+        })
+      },
+      onError: (taskId, errorMsg) => {
+        addThinkingStep({
+          type: 'error',
+          content: errorMsg,
+          agent: 'vibe'
+        })
+      },
+      onCancelled: (taskId) => {
+        addThinkingStep({
+          type: 'error',
+          content: '氛围编排已取消',
+          agent: 'vibe'
+        })
+      }
+    })
+  }
+
+  // 初始连接
+  connectVibeEvents()
+
+  // sessionId 变化时重新连接
+  watch(sessionId, () => {
+    vibeEvents.disconnect()
+    connectVibeEvents()
   })
 
   // ============ 计算属性 ============
@@ -204,6 +264,7 @@ export const useVibeStore = defineStore('vibe', () => {
         addThinkingStep({
           type: 'tool_start',
           content: `调用 ${toolName}`,
+          agent: 'vibe',
           toolName,
           toolInput: input,
         })
@@ -212,6 +273,7 @@ export const useVibeStore = defineStore('vibe', () => {
         addThinkingStep({
           type: 'tool_end',
           content: `${toolName} 完成`,
+          agent: 'vibe',
           toolName,
           toolOutput: result,
         })
