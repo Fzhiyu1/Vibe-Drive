@@ -109,10 +109,10 @@ watch(() => store.thinkingChain, async () => {
         </div>
 
         <!-- Tool Start -->
-        <div v-else-if="step.type === 'tool_start'" class="log-block tool-start">
+        <div v-else-if="step.type === 'tool_start'" class="log-block tool-start" :class="{ 'vibe-tool': step.agent === 'vibe' }">
           <div class="log-header">
             <span class="time">{{ formatTime(step.timestamp) }}</span>
-            <span class="prefix">[TOOL]</span>
+            <span class="prefix">[{{ step.agent === 'vibe' ? 'VIBE' : 'TOOL' }}]</span>
             <span class="label">调用 <span class="tool-name">{{ step.toolName }}</span></span>
           </div>
           <div v-if="step.toolInput" class="log-content code">
@@ -122,10 +122,10 @@ watch(() => store.thinkingChain, async () => {
         </div>
 
         <!-- Tool End -->
-        <div v-else-if="step.type === 'tool_end'" class="log-block tool-end">
+        <div v-else-if="step.type === 'tool_end'" class="log-block tool-end" :class="{ 'vibe-tool': step.agent === 'vibe' }">
           <div class="log-header">
             <span class="time">{{ formatTime(step.timestamp) }}</span>
-            <span class="prefix">[DONE]</span>
+            <span class="prefix">[{{ step.agent === 'vibe' ? 'VIBE' : 'DONE' }}]</span>
             <span class="label"><span class="tool-name">{{ step.toolName }}</span> 完成</span>
           </div>
           <div v-if="step.toolOutput" class="log-content code">
@@ -135,10 +135,10 @@ watch(() => store.thinkingChain, async () => {
         </div>
 
         <!-- Complete -->
-        <div v-else-if="step.type === 'complete'" class="log-block complete">
+        <div v-else-if="step.type === 'complete'" class="log-block complete" :class="{ 'vibe-complete': step.agent === 'vibe' }">
           <div class="log-header">
             <span class="time">{{ formatTime(step.timestamp) }}</span>
-            <span class="prefix">[OK]</span>
+            <span class="prefix">[{{ step.agent === 'vibe' ? 'VIBE' : 'OK' }}]</span>
             <span class="label">{{ step.content }}</span>
           </div>
         </div>
@@ -247,6 +247,8 @@ watch(() => store.thinkingChain, async () => {
 .log-block.thinking { border-color: #569cd6; }
 .log-block.tool-start { border-color: #dcdcaa; }
 .log-block.tool-end { border-color: #4ec9b0; }
+.log-block.vibe-tool { border-color: #c678dd; }
+.log-block.vibe-complete { border-color: #c678dd; }
 .log-block.complete { border-color: #b5cea8; }
 .log-block.error { border-color: #f14c4c; }
 .log-block.user-input { border-color: #61afef; }
@@ -273,6 +275,8 @@ watch(() => store.thinkingChain, async () => {
 .thinking .prefix { color: #569cd6; }
 .tool-start .prefix { color: #dcdcaa; }
 .tool-end .prefix { color: #4ec9b0; }
+.vibe-tool .prefix { color: #c678dd; }
+.vibe-complete .prefix { color: #c678dd; }
 .complete .prefix { color: #b5cea8; }
 .error .prefix { color: #f14c4c; }
 .user-input .prefix { color: #61afef; }
