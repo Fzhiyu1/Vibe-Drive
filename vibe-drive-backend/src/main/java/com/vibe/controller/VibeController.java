@@ -216,4 +216,24 @@ public class VibeController {
         log.info("AI生成环境: description={}", request.description());
         return environmentAgent.generate(request.description());
     }
+
+    @PostMapping("/environment/sync")
+    @Operation(summary = "同步环境", description = "将前端环境数据同步到后端会话存储")
+    public ApiResponse<Void> syncEnvironment(
+            @RequestParam String sessionId,
+            @RequestBody Environment environment) {
+        log.info("同步环境: sessionId={}", sessionId);
+
+        SafetyMode safetyMode = SafetyMode.fromSpeed(environment.speed());
+        VibeStatus currentStatus = statusStore.getOrInitial(sessionId);
+
+        statusStore.put(sessionId, VibeStatus.completed(
+            sessionId,
+            safetyMode,
+            currentStatus.currentPlan(),
+            environment
+        ));
+
+        return ApiResponse.success(null);
+    }
 }
