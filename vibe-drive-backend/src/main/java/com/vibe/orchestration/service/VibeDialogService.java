@@ -187,8 +187,9 @@ public class VibeDialogService {
                 ? promptAssembler.assembleUserPrompt(request.environment(), request.userPreferences())
                 : "请基于已经获得的工具结果，输出最终的氛围推荐理由（简短），不要再调用任何工具。";
 
-        // 3. 调用 Agent
-        TokenStream tokenStream = agent.analyze(prompt, request.sessionId());
+        // 3. 调用 Agent（使用 vibe- 前缀隔离氛围智能体的对话历史）
+        String vibeMemoryId = "vibe-" + request.sessionId();
+        TokenStream tokenStream = agent.analyze(prompt, vibeMemoryId);
 
         // 4. 流式响应处理
         AtomicBoolean hasToolCall = new AtomicBoolean(false);

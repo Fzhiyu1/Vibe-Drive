@@ -43,6 +43,8 @@ public class MasterDialogService {
             tokenStream
                 .onPartialResponse(callback::onTextDelta)
                 .beforeToolExecution(before -> {
+                    // 重新设置 SessionContext，因为工具可能在不同线程执行
+                    SessionContext.setSessionId(sessionId);
                     callback.onToolStart(
                         before.request().name(),
                         before.request().arguments()
