@@ -74,6 +74,17 @@ export const vibeApi = {
     })
     return response.json()
   },
+
+  /**
+   * 同步环境到后端
+   */
+  async syncEnvironment(sessionId: string, environment: Environment): Promise<void> {
+    await fetch(`${API_BASE}/environment/sync?sessionId=${encodeURIComponent(sessionId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(environment),
+    })
+  },
 }
 
 // ============ 主智能体 API ============
@@ -116,6 +127,7 @@ export const masterApi = {
 
     const decoder = new TextDecoder()
     let buffer = ''
+    let currentEventType = ''
 
     while (true) {
       const { done, value } = await reader.read()
@@ -127,7 +139,7 @@ export const masterApi = {
 
       for (const line of lines) {
         if (line.startsWith('event:')) {
-          const eventType = line.slice(6).trim()
+          currentEventType = line.slice(6).trim()
           continue
         }
         if (line.startsWith('data:')) {
@@ -136,19 +148,40 @@ export const masterApi = {
 
           try {
             const parsed = JSON.parse(data)
+
             // 根据事件类型处理
-            if (parsed.text !== undefined) {
-              callbacks.onToken?.(parsed.text)
-            } else if (parsed.toolName && parsed.result !== undefined) {
-              callbacks.onToolEnd?.(parsed.toolName, parsed.result)
-            } else if (parsed.toolName && parsed.input !== undefined) {
-              callbacks.onToolStart?.(parsed.toolName, parsed.input)
-            } else if (parsed.code) {
-              callbacks.onError?.(parsed.code, parsed.message || 'Unknown error')
+            switch (currentEventType) {
+              case 'tool_start':
+                callbacks.onToolStart?.(parsed.toolName, parsed.input)
+                break
+              case 'tool_end':
+                callbacks.onToolEnd?.(parsed.toolName, parsed.result)
+                break
+              case 'token':
+                callbacks.onToken?.(parsed.text)
+                break
+              case 'error':
+                callbacks.onError?.(parsed.code, parsed.message || 'Unknown error')
+                break
+              case 'complete':
+                // complete 事件在循环结束后处理
+                break
+              default:
+                // 兼容旧格式：通过字段判断
+                if (parsed.text !== undefined) {
+                  callbacks.onToken?.(parsed.text)
+                } else if (parsed.toolName && parsed.result !== undefined) {
+                  callbacks.onToolEnd?.(parsed.toolName, parsed.result)
+                } else if (parsed.toolName && parsed.input !== undefined) {
+                  callbacks.onToolStart?.(parsed.toolName, parsed.input)
+                }
             }
           } catch {
             // 忽略解析错误
           }
+
+          // 重置事件类型
+          currentEventType = ''
         }
       }
     }

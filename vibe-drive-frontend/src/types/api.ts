@@ -237,9 +237,18 @@ export interface ErrorEvent {
 // ============ UI 辅助类型 ============
 
 export interface ThinkingStep {
-  type: 'thinking' | 'tool_start' | 'tool_end' | 'complete' | 'error' | 'user'
+  type:
+    | 'user_input'    // 用户输入
+    | 'ai_response'   // AI 回复（say 工具）
+    | 'thinking'      // AI 思考
+    | 'tool_start'    // 工具开始
+    | 'tool_end'      // 工具完成
+    | 'agent_call'    // 调用子智能体
+    | 'complete'      // 完成
+    | 'error'         // 错误
   timestamp: number
   content: string
+  agent?: 'master' | 'vibe'  // 区分智能体
   toolName?: string
   toolInput?: unknown
   toolOutput?: string
