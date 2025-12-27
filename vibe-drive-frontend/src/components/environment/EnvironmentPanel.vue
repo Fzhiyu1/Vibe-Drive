@@ -1,8 +1,51 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useVibeStore } from '@/stores/vibeStore'
+import { vibeApi } from '@/services/api'
+import type { ScenarioType } from '@/types/api'
 import MoodSelector from './MoodSelector.vue'
 
 const store = useVibeStore()
+
+// 环境生成状态
+const isGenerating = ref(false)
+const aiPrompt = ref('')
+
+// 预设场景
+const scenarios: { type: ScenarioType; label: string }[] = [
+  { type: 'LATE_NIGHT_RETURN', label: '深夜归途' },
+  { type: 'WEEKEND_FAMILY_TRIP', label: '周末出游' },
+  { type: 'MORNING_COMMUTE', label: '通勤早高峰' },
+]
+
+// 加载预设场景
+async function loadScenario(type: ScenarioType) {
+  if (isGenerating.value) return
+  isGenerating.value = true
+  try {
+    const env = await vibeApi.getScenario(type)
+    store.setEnvironment(env)
+  } catch (e) {
+    console.error('加载场景失败:', e)
+  } finally {
+    isGenerating.value = false
+  }
+}
+
+// AI 生成环境
+async function generateEnvironment() {
+  if (!aiPrompt.value.trim() || isGenerating.value) return
+  isGenerating.value = true
+  try {
+    const env = await vibeApi.generateEnvironment(aiPrompt.value)
+    store.setEnvironment(env)
+    aiPrompt.value = ''
+  } catch (e) {
+    console.error('生成环境失败:', e)
+  } finally {
+    isGenerating.value = false
+  }
+}
 
 const gpsLabels: Record<string, string> = {
   HIGHWAY: '高速公路',
@@ -60,6 +103,43 @@ const getFatigueClass = (level: number) => {
 
 <template>
   <div class="environment-panel">
+    <!-- 环境生成区域 -->
+    <div class="generate-section">
+      <h3 class="section-title">生成环境</h3>
+
+      <!-- 预设场景 -->
+      <div class="scenario-buttons">
+        <button
+          v-for="s in scenarios"
+          :key="s.type"
+          class="scenario-btn"
+          :disabled="isGenerating"
+          @click="loadScenario(s.type)"
+        >
+          {{ s.label }}
+        </button>
+      </div>
+
+      <!-- AI 生成 -->
+      <div class="ai-generate">
+        <input
+          v-model="aiPrompt"
+          placeholder="描述场景，如：雨夜高速..."
+          :disabled="isGenerating"
+          @keydown.enter="generateEnvironment"
+        />
+        <button
+          class="generate-btn"
+          :disabled="!aiPrompt.trim() || isGenerating"
+          @click="generateEnvironment"
+        >
+          {{ isGenerating ? '...' : '生成' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="divider" />
+
     <h2 class="panel-title">环境信息</h2>
 
     <div v-if="store.environment" class="info-list">
@@ -231,5 +311,75 @@ const getFatigueClass = (level: number) => {
 
 .status-danger {
   color: var(--accent-danger);
+}
+
+/* 环境生成区域 */
+.generate-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.scenario-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.scenario-btn {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.scenario-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.scenario-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-generate {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ai-generate input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.ai-generate input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.generate-btn {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
