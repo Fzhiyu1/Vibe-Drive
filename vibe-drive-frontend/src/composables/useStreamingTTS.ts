@@ -3,10 +3,10 @@ import { ref } from 'vue'
 const TTS_API_BASE = 'http://localhost:3002'
 
 /**
- * TTS 播放（流式版本）
+ * 流式 TTS 播放
  * 使用 MediaSource API 实现边收边播，降低首字延迟
  */
-export function useTTS() {
+export function useStreamingTTS() {
   const isSpeaking = ref(false)
   let currentAudio: HTMLAudioElement | null = null
   let currentMediaSource: MediaSource | null = null
@@ -29,25 +29,25 @@ export function useTTS() {
    */
   async function speak(text: string, options?: { volume?: number }) {
     if (!text?.trim()) {
-      console.warn('[TTS] Empty text, skipping')
+      console.warn('[StreamingTTS] Empty text, skipping')
       return
     }
 
     // 停止当前播放
     stop()
 
-    console.log('[TTS] Speaking (streaming):', text.substring(0, 30) + '...')
-
-    // 检查浏览器是否支持 MediaSource
-    if (!window.MediaSource) {
-      console.warn('[TTS] MediaSource not supported, using fallback')
-      await fallbackSpeak(text, options)
-      return
-    }
+    console.log('[StreamingTTS] Speaking:', text.substring(0, 30) + '...')
 
     const audio = new Audio()
     currentAudio = audio
     audio.volume = options?.volume ?? 0.8
+
+    // 检查浏览器是否支持 MediaSource
+    if (!window.MediaSource) {
+      console.warn('[StreamingTTS] MediaSource not supported, falling back to direct URL')
+      await fallbackSpeak(text, options)
+      return
+    }
 
     const mediaSource = new MediaSource()
     currentMediaSource = mediaSource
@@ -55,14 +55,17 @@ export function useTTS() {
 
     mediaSource.addEventListener('sourceopen', async () => {
       try {
+        // MP3 MIME type
         const mimeType = 'audio/mpeg'
         if (!MediaSource.isTypeSupported(mimeType)) {
-          console.warn('[TTS] MIME type not supported, using fallback')
+          console.warn('[StreamingTTS] MIME type not supported:', mimeType)
           await fallbackSpeak(text, options)
           return
         }
 
         const sourceBuffer = mediaSource.addSourceBuffer(mimeType)
+
+        // 发起流式请求
         const url = `${TTS_API_BASE}/api/tts/speak?text=${encodeURIComponent(text)}`
         const response = await fetch(url)
 
@@ -82,6 +85,7 @@ export function useTTS() {
           const { done, value } = await reader.read()
 
           if (done) {
+            // 等待最后一个 buffer 更新完成
             await waitForUpdateEnd(sourceBuffer)
             if (mediaSource.readyState === 'open') {
               mediaSource.endOfStream()
@@ -89,15 +93,21 @@ export function useTTS() {
             break
           }
 
+          // 追加数据到 buffer
           await waitForUpdateEnd(sourceBuffer)
           if (mediaSource.readyState === 'open') {
             sourceBuffer.appendBuffer(value)
           }
         }
       } catch (error) {
-        console.error('[TTS] Streaming error:', error)
+        console.error('[StreamingTTS] Error:', error)
         isSpeaking.value = false
       }
+    })
+
+    // 监听播放事件
+    audio.addEventListener('play', () => {
+      isSpeaking.value = true
     })
 
     audio.addEventListener('ended', () => {
@@ -106,15 +116,16 @@ export function useTTS() {
     })
 
     audio.addEventListener('error', (e) => {
-      console.error('[TTS] Audio error:', e)
+      console.error('[StreamingTTS] Audio error:', e)
       isSpeaking.value = false
       cleanup()
     })
 
+    // 开始播放
     try {
       await audio.play()
     } catch (error) {
-      console.error('[TTS] Play failed:', error)
+      console.error('[StreamingTTS] Play failed:', error)
       isSpeaking.value = false
     }
   }
@@ -130,25 +141,44 @@ export function useTTS() {
     audio.src = url
     audio.volume = options?.volume ?? 0.8
 
-    audio.addEventListener('play', () => { isSpeaking.value = true })
-    audio.addEventListener('ended', () => { isSpeaking.value = false })
-    audio.addEventListener('error', () => { isSpeaking.value = false })
+    audio.addEventListener('play', () => {
+      isSpeaking.value = true
+    })
+
+    audio.addEventListener('ended', () => {
+      isSpeaking.value = false
+    })
+
+    audio.addEventListener('error', (e) => {
+      console.error('[StreamingTTS] Fallback audio error:', e)
+      isSpeaking.value = false
+    })
 
     try {
       await audio.play()
     } catch (error) {
-      console.error('[TTS] Fallback play failed:', error)
+      console.error('[StreamingTTS] Fallback play failed:', error)
       isSpeaking.value = false
     }
   }
 
+  /**
+   * 清理资源
+   */
   function cleanup() {
     if (currentMediaSource && currentMediaSource.readyState === 'open') {
-      try { currentMediaSource.endOfStream() } catch (e) { /* ignore */ }
+      try {
+        currentMediaSource.endOfStream()
+      } catch (e) {
+        // ignore
+      }
     }
     currentMediaSource = null
   }
 
+  /**
+   * 停止播放
+   */
   function stop() {
     if (currentAudio) {
       currentAudio.pause()
