@@ -1,5 +1,6 @@
 package com.vibe.tool;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vibe.context.SessionContext;
 import com.vibe.model.AmbiencePlan;
 import com.vibe.model.Environment;
@@ -23,12 +24,14 @@ import java.util.concurrent.TimeUnit;
 public class CallVibeAgentTool {
 
     private static final Logger log = LoggerFactory.getLogger(CallVibeAgentTool.class);
-    private static final int TIMEOUT_SECONDS = 60;
+    private static final int TIMEOUT_SECONDS = 120;
 
     private final VibeDialogService vibeDialogService;
+    private final ObjectMapper objectMapper;
 
-    public CallVibeAgentTool(VibeDialogService vibeDialogService) {
+    public CallVibeAgentTool(VibeDialogService vibeDialogService, ObjectMapper objectMapper) {
         this.vibeDialogService = vibeDialogService;
+        this.objectMapper = objectMapper;
     }
 
     @Tool("""
@@ -105,38 +108,14 @@ public class CallVibeAgentTool {
 
     private String formatResult(AmbiencePlan plan) {
         if (plan == null) {
-            return "氛围编排完成，但未生成方案";
+            return "{\"error\": \"氛围编排完成，但未生成方案\"}";
         }
 
-        StringBuilder sb = new StringBuilder("氛围编排完成：\n");
-
-        if (plan.playlist() != null && !plan.playlist().songs().isEmpty()) {
-            sb.append("- 音乐: 已创建播放列表，共 ")
-              .append(plan.playlist().songs().size()).append(" 首歌\n");
-        } else if (plan.playResult() != null) {
-            sb.append("- 音乐: ").append(plan.playResult().name())
-              .append(" - ").append(plan.playResult().artist()).append("\n");
+        try {
+            return objectMapper.writeValueAsString(plan);
+        } catch (Exception e) {
+            log.error("序列化 AmbiencePlan 失败", e);
+            return "{\"error\": \"序列化失败: " + e.getMessage() + "\"}";
         }
-
-        if (plan.light() != null) {
-            sb.append("- 灯光: ").append(plan.light().color().hex())
-              .append(", 亮度 ").append(plan.light().brightness()).append("%\n");
-        }
-
-        if (plan.scent() != null) {
-            sb.append("- 香氛: ").append(plan.scent().type())
-              .append(", 强度 ").append(plan.scent().intensity()).append("%\n");
-        }
-
-        if (plan.massage() != null) {
-            sb.append("- 按摩: ").append(plan.massage().mode())
-              .append(", 强度 ").append(plan.massage().intensity()).append("%\n");
-        }
-
-        if (plan.reasoning() != null) {
-            sb.append("\n理由: ").append(plan.reasoning());
-        }
-
-        return sb.toString();
     }
 }
