@@ -2,6 +2,7 @@ import type {
   AnalyzeRequest,
   AnalyzeResponse,
   ApiResponse,
+  AmbiencePlan,
   Environment,
   FeedbackRequest,
   ScenarioType,
@@ -83,6 +84,27 @@ export const vibeApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(environment),
+    })
+  },
+
+  /**
+   * 触发氛围编排（环境变化时调用）
+   */
+  async triggerVibeAgent(
+    sessionId: string,
+    environment: Environment,
+    currentPlan?: AmbiencePlan | null,
+    changeDescription?: string,
+    currentPlaylistIndex?: number
+  ): Promise<ApiResponse<string>> {
+    return request<string>(`/trigger?sessionId=${encodeURIComponent(sessionId)}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        environment,
+        currentPlan: currentPlan || null,
+        changeDescription: changeDescription || null,
+        currentPlaylistIndex: currentPlaylistIndex ?? null
+      }),
     })
   },
 }

@@ -33,6 +33,8 @@ export const useVibeStore = defineStore('vibe', () => {
   // ============ 音频管理 ============
   const audio = new Audio()
   const isPlaying = ref(false)
+  const audioVolume = ref(0.5)  // 默认音量50%
+  audio.volume = 0.5
   const audioProgress = ref(0)
   const currentPlaylistIndex = ref(0)
 
@@ -498,8 +500,8 @@ export const useVibeStore = defineStore('vibe', () => {
     console.log('[vibeStore] playMusic called:', url)
     console.log('[vibeStore] audio.volume:', audio.volume, 'audio.muted:', audio.muted)
     audio.src = url
-    audio.volume = 1  // 确保音量最大
-    audio.muted = false  // 确保不静音
+    audio.volume = audioVolume.value
+    audio.muted = false
     audio.play().then(() => {
       console.log('[vibeStore] audio.play() success, duration:', audio.duration)
       isPlaying.value = true
@@ -515,6 +517,11 @@ export const useVibeStore = defineStore('vibe', () => {
       audio.play()
     }
     isPlaying.value = !isPlaying.value
+  }
+
+  function setVolume(volume: number) {
+    audioVolume.value = Math.max(0, Math.min(1, volume))
+    audio.volume = audioVolume.value
   }
 
   // ============ 歌单控制方法 ============
@@ -565,6 +572,7 @@ export const useVibeStore = defineStore('vibe', () => {
     // 音频状态
     isPlaying,
     audioProgress,
+    audioVolume,
     currentPlaylistIndex,
     // 计算属性
     safetyMode,
@@ -572,6 +580,7 @@ export const useVibeStore = defineStore('vibe', () => {
     // Actions
     setEnvironment,
     clearThinkingChain,
+    addThinkingStep,
     analyzeStream,
     analyze,
     toggleTheme,
@@ -584,6 +593,7 @@ export const useVibeStore = defineStore('vibe', () => {
     unlockAudio,
     playMusic,
     toggleAudio,
+    setVolume,
     // 歌单控制
     playNext,
     playPrevious,

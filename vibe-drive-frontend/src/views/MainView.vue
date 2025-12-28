@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useVibeStore } from '@/stores/vibeStore'
+import { useEnvironmentDetector } from '@/composables/useEnvironmentDetector'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import EnvironmentPanel from '@/components/environment/EnvironmentPanel.vue'
 import ThreeVisualizer from '@/components/ambience/ThreeVisualizer.vue'
@@ -16,6 +17,18 @@ import type { Environment } from '@/types/api'
 
 const store = useVibeStore()
 const showModal = ref(false)
+
+// 环境变化检测器
+const detector = useEnvironmentDetector()
+
+// 监听行驶模拟状态，自动启停检测器
+watch(() => store.drivingSimulationActive, (active) => {
+  if (active) {
+    detector.start()
+  } else {
+    detector.stop()
+  }
+})
 
 function openModal() {
   showModal.value = true
