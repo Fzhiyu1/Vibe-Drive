@@ -12,16 +12,48 @@ export function useTTS() {
   let currentMediaSource: MediaSource | null = null
 
   /**
-   * 等待 SourceBuffer 更新完成
+   * 安全地追加数据到 SourceBuffer（使用队列避免并发）
    */
-  function waitForUpdateEnd(sourceBuffer: SourceBuffer): Promise<void> {
-    return new Promise((resolve) => {
-      if (!sourceBuffer.updating) {
-        resolve()
-        return
+  function createBufferQueue(sourceBuffer: SourceBuffer) {
+    const queue: Uint8Array[] = []
+    let processing = false
+
+    async function processQueue() {
+      if (processing || queue.length === 0) return
+      processing = true
+
+      while (queue.length > 0) {
+        const chunk = queue.shift()!
+
+        // 等待 SourceBuffer 空闲
+        while (sourceBuffer.updating) {
+          await new Promise(resolve =>
+            sourceBuffer.addEventListener('updateend', resolve, { once: true })
+          )
+        }
+
+        try {
+          sourceBuffer.appendBuffer(chunk)
+        } catch (e) {
+          console.warn('[TTS] appendBuffer failed:', e)
+          break
+        }
       }
-      sourceBuffer.addEventListener('updateend', () => resolve(), { once: true })
-    })
+
+      processing = false
+    }
+
+    return {
+      push(chunk: Uint8Array) {
+        queue.push(chunk)
+        processQueue()
+      },
+      async waitForDrain() {
+        while (queue.length > 0 || sourceBuffer.updating) {
+          await new Promise(resolve => setTimeout(resolve, 10))
+        }
+      }
+    }
   }
 
   /**
@@ -63,6 +95,7 @@ export function useTTS() {
         }
 
         const sourceBuffer = mediaSource.addSourceBuffer(mimeType)
+        const bufferQueue = createBufferQueue(sourceBuffer)
         const url = `${TTS_API_BASE}/api/tts/speak?text=${encodeURIComponent(text)}`
         const response = await fetch(url)
 
@@ -82,16 +115,15 @@ export function useTTS() {
           const { done, value } = await reader.read()
 
           if (done) {
-            await waitForUpdateEnd(sourceBuffer)
+            await bufferQueue.waitForDrain()
             if (mediaSource.readyState === 'open') {
               mediaSource.endOfStream()
             }
             break
           }
 
-          await waitForUpdateEnd(sourceBuffer)
           if (mediaSource.readyState === 'open') {
-            sourceBuffer.appendBuffer(value)
+            bufferQueue.push(value)
           }
         }
       } catch (error) {
