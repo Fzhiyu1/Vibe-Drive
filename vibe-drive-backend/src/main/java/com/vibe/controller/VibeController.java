@@ -11,6 +11,7 @@ import com.vibe.simulator.ScenarioType;
 import com.vibe.model.event.AmbienceChangedEvent;
 import com.vibe.model.event.SafetyModeChangedEvent;
 import com.vibe.model.enums.SafetyMode;
+import com.vibe.orchestration.VibeTaskManager;
 import com.vibe.orchestration.dto.VibeDialogRequest;
 import com.vibe.orchestration.dto.VibeDialogResult;
 import com.vibe.orchestration.service.VibeDialogService;
@@ -44,6 +45,7 @@ public class VibeController {
     private final ObjectMapper objectMapper;
     private final EnvironmentSimulator environmentSimulator;
     private final EnvironmentAgent environmentAgent;
+    private final VibeTaskManager vibeTaskManager;
 
     public VibeController(
             VibeDialogService dialogService,
@@ -51,13 +53,15 @@ public class VibeController {
             SseEventPublisher eventPublisher,
             ObjectMapper objectMapper,
             EnvironmentSimulator environmentSimulator,
-            EnvironmentAgentFactory environmentAgentFactory) {
+            EnvironmentAgentFactory environmentAgentFactory,
+            VibeTaskManager vibeTaskManager) {
         this.dialogService = dialogService;
         this.statusStore = statusStore;
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
         this.environmentSimulator = environmentSimulator;
         this.environmentAgent = environmentAgentFactory.createAgent();
+        this.vibeTaskManager = vibeTaskManager;
     }
 
     @PostMapping("/analyze")
@@ -235,5 +239,27 @@ public class VibeController {
         ));
 
         return ApiResponse.success(null);
+    }
+
+    @PostMapping("/trigger")
+    @Operation(summary = "触发氛围编排", description = "环境变化时触发氛围Agent进行编排，支持增量调整")
+    public ApiResponse<String> triggerVibeAgent(
+            @RequestParam String sessionId,
+            @RequestBody TriggerRequest request) {
+        log.info("触发氛围编排: sessionId={}, isAdjustment={}", sessionId, request.isAdjustment());
+
+        try {
+            String taskId = vibeTaskManager.startTask(
+                sessionId,
+                request.environment(),
+                request.currentPlan(),
+                request.changeDescription(),
+                request.currentPlaylistIndex()
+            );
+            return ApiResponse.success(taskId);
+        } catch (Exception e) {
+            log.error("触发氛围编排失败: sessionId={}", sessionId, e);
+            return ApiResponse.internalError("触发失败: " + e.getMessage());
+        }
     }
 }

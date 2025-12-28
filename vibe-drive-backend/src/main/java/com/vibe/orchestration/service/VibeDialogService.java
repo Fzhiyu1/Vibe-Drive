@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vibe.agent.PromptAssembler;
 import com.vibe.agent.VibeAgent;
 import com.vibe.agent.VibeAgentFactory;
+import com.vibe.context.SessionContext;
 import com.vibe.model.AmbiencePlan;
 import com.vibe.model.LightSetting;
 import com.vibe.model.MassageSetting;
@@ -73,6 +74,9 @@ public class VibeDialogService {
      * 执行对话（流式，支持取消）
      */
     public void executeDialog(VibeDialogRequest request, VibeStreamCallback callback, CancellationToken cancellationToken) {
+        // 0. 设置会话上下文
+        SessionContext.setSessionId(request.sessionId());
+
         // 1. 计算安全模式
         SafetyMode safetyMode = SafetyMode.fromSpeed(request.environment().speed());
         log.info("开始对话: sessionId={}, safetyMode={}", request.sessionId(), safetyMode);
@@ -201,9 +205,23 @@ public class VibeDialogService {
 
         // 2. 创建 Agent 并构建 Prompt
         VibeAgent agent = agentFactory.createAgent();
-        String prompt = depth == 0
-                ? promptAssembler.assembleUserPrompt(request.environment(), request.userPreferences())
-                : "请基于已经获得的工具结果，输出最终的氛围推荐理由（简短），不要再调用任何工具。";
+        String prompt;
+        if (depth == 0) {
+            // 首轮：判断是初始编排还是增量调整
+            if (request.isAdjustment()) {
+                prompt = promptAssembler.assembleAdjustPrompt(
+                    request.environment(),
+                    request.currentPlan(),
+                    request.changeDescription(),
+                    request.currentPlaylistIndex()
+                );
+                log.info("使用增量调整 Prompt: changeDescription={}", request.changeDescription());
+            } else {
+                prompt = promptAssembler.assembleUserPrompt(request.environment(), request.userPreferences());
+            }
+        } else {
+            prompt = "请基于已经获得的工具结果，输出最终的氛围推荐理由（简短），不要再调用任何工具。";
+        }
 
         // 3. 调用 Agent（每个任务使用独立的 memoryId，避免取消后对话历史污染）
         String vibeMemoryId = request.taskId() != null
@@ -220,6 +238,8 @@ public class VibeDialogService {
         tokenStream
                 .onPartialResponse(callback::onTextDelta)
                 .beforeToolExecution(before -> {
+                    // 重新设置 SessionContext，因为工具可能在不同线程执行
+                    SessionContext.setSessionId(request.sessionId());
                     // 工具执行前检查取消状态
                     if (cancellationToken != null && cancellationToken.isCancelled()) {
                         log.info("任务已取消，跳过工具执行: toolName={}", before.request().name());

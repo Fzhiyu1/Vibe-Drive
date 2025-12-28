@@ -1,6 +1,7 @@
 package com.vibe.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vibe.model.AmbiencePlan;
 import com.vibe.model.Environment;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
@@ -76,6 +77,71 @@ public class PromptAssembler {
         }
 
         sb.append("\n请根据环境数据和安全模式规则，调用合适的工具生成氛围编排方案。");
+
+        return sb.toString();
+    }
+
+    /**
+     * 组装增量调整 Prompt（环境变化时使用）
+     */
+    public String assembleAdjustPrompt(Environment environment, AmbiencePlan currentPlan, String changeDescription, Integer currentPlaylistIndex) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("## 环境变化通知\n");
+        sb.append("检测到以下环境变化：**").append(changeDescription).append("**\n\n");
+
+        sb.append("## 当前环境\n```json\n");
+        try {
+            sb.append(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(environment));
+        } catch (Exception e) {
+            sb.append("{}");
+        }
+        sb.append("\n```\n\n");
+
+        sb.append("## 当前氛围状态\n");
+        if (currentPlan != null) {
+            if (currentPlan.light() != null) {
+                sb.append("- 灯光：").append(currentPlan.light().color().hex())
+                  .append("，亮度").append(currentPlan.light().brightness()).append("%\n");
+            }
+            if (currentPlan.scent() != null) {
+                sb.append("- 香氛：").append(currentPlan.scent().type())
+                  .append("，强度").append(currentPlan.scent().intensity()).append("\n");
+            }
+            if (currentPlan.massage() != null) {
+                sb.append("- 按摩：").append(currentPlan.massage().mode())
+                  .append("，强度").append(currentPlan.massage().intensity()).append("\n");
+            }
+            if (currentPlan.playlist() != null && currentPlan.playlist().songs() != null) {
+                sb.append("- 音乐：正在播放歌单（").append(currentPlan.playlist().songs().size()).append("首）\n");
+            }
+        }
+
+        sb.append("\n## 调整要求\n");
+        sb.append("请根据环境变化，**只调整需要改变的部分**，保持其他设置不变。\n");
+        sb.append("- 如果变化不影响某个设置，就不要调用对应的工具\n");
+        sb.append("- 例如：天气变化可能需要调整灯光和叙事，但不需要重新推荐音乐\n");
+        sb.append("- 例如：进入新城市可能需要更新叙事，但灯光和香氛可以保持\n\n");
+
+        sb.append("## 音乐歌单规则（重要）\n");
+        sb.append("- **禁止重新创建歌单**，当前已有歌单正在播放\n");
+
+        // 计算剩余歌曲数
+        int totalSongs = 0;
+        int currentIndex = currentPlaylistIndex != null ? currentPlaylistIndex : 0;
+        if (currentPlan != null && currentPlan.playlist() != null && currentPlan.playlist().songs() != null) {
+            totalSongs = currentPlan.playlist().songs().size();
+        }
+        int remainingSongs = totalSongs - currentIndex - 1;
+
+        if (remainingSongs > 5) {
+            sb.append("- **当前剩余 ").append(remainingSongs).append(" 首歌曲待播放，不需要添加新歌**\n");
+            sb.append("- 请勿调用任何音乐相关工具\n");
+        } else if (remainingSongs >= 0) {
+            sb.append("- 当前剩余 ").append(remainingSongs).append(" 首歌曲，可以适当添加新歌\n");
+            sb.append("- 使用 `addToPlaylist` 添加新歌曲到歌单末尾\n");
+        } else {
+            sb.append("- 歌单状态异常，请勿操作音乐\n");
+        }
 
         return sb.toString();
     }

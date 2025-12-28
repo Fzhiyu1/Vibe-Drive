@@ -8,6 +8,7 @@ import com.vibe.orchestration.callback.VibeStreamCallback;
 import com.vibe.orchestration.dto.VibeDialogRequest;
 import com.vibe.orchestration.dto.VibeMessage;
 import com.vibe.orchestration.service.VibeDialogService;
+import com.vibe.service.PlaylistService;
 import com.vibe.sse.SseEventPublisher;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import org.slf4j.Logger;
@@ -29,6 +30,7 @@ public class VibeTaskManager {
 
     private final VibeDialogService vibeDialogService;
     private final SseEventPublisher sseEventPublisher;
+    private final PlaylistService playlistService;
     private final ObjectMapper objectMapper;
     private final ExecutorService executor;
 
@@ -41,9 +43,11 @@ public class VibeTaskManager {
     public VibeTaskManager(
             VibeDialogService vibeDialogService,
             SseEventPublisher sseEventPublisher,
+            PlaylistService playlistService,
             ObjectMapper objectMapper) {
         this.vibeDialogService = vibeDialogService;
         this.sseEventPublisher = sseEventPublisher;
+        this.playlistService = playlistService;
         this.objectMapper = objectMapper;
         this.executor = Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "vibe-task-");
@@ -57,20 +61,43 @@ public class VibeTaskManager {
      * @return 任务 ID
      */
     public String startTask(String sessionId, Environment env) {
+        return startTask(sessionId, env, null, null, null);
+    }
+
+    /**
+     * 启动增量调整任务
+     * @return 任务 ID
+     */
+    public String startTask(String sessionId, Environment env, AmbiencePlan currentPlan, String changeDescription) {
+        return startTask(sessionId, env, currentPlan, changeDescription, null);
+    }
+
+    /**
+     * 启动增量调整任务（带播放索引同步）
+     * @return 任务 ID
+     */
+    public String startTask(String sessionId, Environment env, AmbiencePlan currentPlan, String changeDescription, Integer currentPlaylistIndex) {
         // 1. 终止旧任务
         cancelTask(sessionId);
 
-        // 2. 创建新任务
+        // 2. 同步播放索引
+        if (currentPlaylistIndex != null) {
+            playlistService.playAt(sessionId, currentPlaylistIndex);
+            log.info("同步播放索引: sessionId={}, index={}", sessionId, currentPlaylistIndex);
+        }
+
+        // 3. 创建新任务
         String taskId = generateTaskId();
         CompletableFuture<Void> future = new CompletableFuture<>();
         CancellationToken cancellationToken = new CancellationToken();
         VibeTask task = new VibeTask(taskId, sessionId, future, cancellationToken, Instant.now());
 
         currentTasks.put(sessionId, task);
-        log.info("启动氛围任务: taskId={}, sessionId={}", taskId, sessionId);
+        log.info("启动氛围任务: taskId={}, sessionId={}, isAdjustment={}",
+                taskId, sessionId, changeDescription != null);
 
-        // 3. 异步执行
-        executor.submit(() -> executeTask(task, env));
+        // 4. 异步执行
+        executor.submit(() -> executeTask(task, env, currentPlan, changeDescription, currentPlaylistIndex));
 
         return taskId;
     }
@@ -122,13 +149,18 @@ public class VibeTaskManager {
     /**
      * 执行任务
      */
-    private void executeTask(VibeTask task, Environment env) {
+    private void executeTask(VibeTask task, Environment env, AmbiencePlan currentPlan, String changeDescription, Integer currentPlaylistIndex) {
         String sessionId = task.sessionId();
         String taskId = task.taskId();
         CancellationToken cancellationToken = task.cancellationToken();
 
         try {
-            VibeDialogRequest request = VibeDialogRequest.of(sessionId, taskId, env);
+            VibeDialogRequest request;
+            if (changeDescription != null && !changeDescription.isBlank()) {
+                request = VibeDialogRequest.forAdjustment(sessionId, taskId, env, currentPlan, changeDescription, currentPlaylistIndex);
+            } else {
+                request = VibeDialogRequest.of(sessionId, taskId, env);
+            }
 
             vibeDialogService.executeDialog(request, new VibeStreamCallback() {
                 @Override
