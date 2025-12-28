@@ -21,8 +21,19 @@ function openModal() {
   showModal.value = true
 }
 
+function startDemo() {
+  store.unlockAudio()
+  if (store.environment) {
+    // 已有环境数据，直接开始
+    store.analyzeStream()
+  } else {
+    // 没有环境数据，弹出选择弹窗
+    showModal.value = true
+  }
+}
+
 function handleSelect(env: Environment) {
-  store.unlockAudio()  // 用户交互时激活音频
+  store.unlockAudio()
   store.setEnvironment(env)
   store.analyzeStream()
 }
@@ -38,9 +49,9 @@ function handleSelect(env: Environment) {
         <button
           v-if="!store.agentRunning"
           class="demo-btn"
-          @click="openModal"
+          @click="startDemo"
         >
-          开始演示
+          {{ store.environment ? '开始编排' : '选择场景' }}
         </button>
         <button
           v-else
