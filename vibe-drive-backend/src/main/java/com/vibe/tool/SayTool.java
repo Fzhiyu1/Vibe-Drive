@@ -13,6 +13,7 @@ public class SayTool {
 
     @Tool("对用户说话，会转为语音播放。只在需要回复用户时调用。")
     public String say(@P("要说的内容") String text) {
-        return text;
+        // 返回简单确认，避免 AI 把返回值当作需要继续处理的内容
+        return "已播放";
     }
 }
