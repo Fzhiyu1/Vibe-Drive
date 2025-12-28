@@ -149,11 +149,14 @@ export function useWeatherEffect(scene: THREE.Scene) {
     const config = WEATHER_CONFIG[currentWeather]
     if (!config) return  // 安全检查
 
+    // 限制 delta 最大值，防止挂机后恢复时一次性移动太多
+    const clampedDelta = Math.min(delta, 0.1)
+
     // 更新雨滴
     if (config.particles === 'rain' && rainPositions && rainParticles) {
       for (let i = 0; i < RAIN_CONFIG.count; i++) {
         const i3 = i * 3
-        rainPositions[i3 + 1] -= RAIN_CONFIG.speed * delta * 60
+        rainPositions[i3 + 1] -= RAIN_CONFIG.speed * clampedDelta * 60
 
         // 重置到顶部
         if (rainPositions[i3 + 1] < 0) {
@@ -169,11 +172,11 @@ export function useWeatherEffect(scene: THREE.Scene) {
     if (config.particles === 'snow' && snowPositions && snowDrifts && snowParticles) {
       for (let i = 0; i < SNOW_CONFIG.count; i++) {
         const i3 = i * 3
-        snowPositions[i3 + 1] -= SNOW_CONFIG.speed * delta * 60
+        snowPositions[i3 + 1] -= SNOW_CONFIG.speed * clampedDelta * 60
 
         // 横向漂移（正弦波动）
-        snowDrifts[i] += delta * 2
-        snowPositions[i3] += Math.sin(snowDrifts[i]) * SNOW_CONFIG.drift * delta * 60
+        snowDrifts[i] += clampedDelta * 2
+        snowPositions[i3] += Math.sin(snowDrifts[i]) * SNOW_CONFIG.drift * clampedDelta * 60
 
         // 重置到顶部
         if (snowPositions[i3 + 1] < 0) {

@@ -15,7 +15,9 @@ public enum GpsTag {
     SUBURBAN("suburban", "郊区"),
     MOUNTAIN("mountain", "山区"),
     COASTAL("coastal", "海滨"),
-    PARKING("parking", "停车场");
+    PARKING("parking", "停车场"),
+    CITY_ROAD("city_road", "城市道路"),
+    CITY_EXPRESSWAY("city_expressway", "城市快速路");
 
     private final String value;
     private final String displayName;
