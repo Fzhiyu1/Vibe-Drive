@@ -23,6 +23,11 @@ const roadMat = new THREE.MeshStandardMaterial({
   roughness: 0.8
 })
 
+const grassMat = new THREE.MeshStandardMaterial({
+  color: 0x2d5a27,
+  roughness: 0.95
+})
+
 const lineMat = new THREE.MeshBasicMaterial({ color: 0xffff00 })
 
 // 创建座椅
@@ -111,6 +116,24 @@ export function useCarInterior(scene: THREE.Scene): CarInteriorMeshes {
   road.rotation.x = -Math.PI / 2
   road.position.set(0, 0.01, -100)
   scene.add(road)
+
+  // 左侧草地
+  const leftGrass = new THREE.Mesh(
+    new THREE.PlaneGeometry(20, 200),
+    grassMat
+  )
+  leftGrass.rotation.x = -Math.PI / 2
+  leftGrass.position.set(-12, 0.005, -100)
+  scene.add(leftGrass)
+
+  // 右侧草地
+  const rightGrass = new THREE.Mesh(
+    new THREE.PlaneGeometry(20, 200),
+    grassMat
+  )
+  rightGrass.rotation.x = -Math.PI / 2
+  rightGrass.position.set(12, 0.005, -100)
+  scene.add(rightGrass)
 
   // 道路中线
   const roadLine = new THREE.Mesh(

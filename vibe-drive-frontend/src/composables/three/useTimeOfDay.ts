@@ -96,6 +96,7 @@ export function useTimeOfDay(context: SceneContext, options?: UseTimeOfDayOption
   let sky: Sky | null = null
   let ambientLight: THREE.AmbientLight | null = null
   let sunLight: THREE.DirectionalLight | null = null
+  let hemiLight: THREE.HemisphereLight | null = null
 
   // 初始化 Sky
   sky = new Sky()
@@ -115,6 +116,10 @@ export function useTimeOfDay(context: SceneContext, options?: UseTimeOfDayOption
   sunLight = new THREE.DirectionalLight(0xffffff, 0.5)
   sunLight.position.set(0, 5, -3)
   scene.add(sunLight)
+
+  // 半球光（天空光 + 地面反射）
+  hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x3d5c3d, 0.6)
+  scene.add(hemiLight)
 
   // 补光
   const fillLight = new THREE.DirectionalLight(0x8888ff, 0.2)
@@ -147,6 +152,26 @@ export function useTimeOfDay(context: SceneContext, options?: UseTimeOfDayOption
       sunLight.color.copy(config.sun)
       sunLight.intensity = config.sunIntensity
       sunLight.position.copy(config.sunPosition)
+    }
+
+    // 更新半球光
+    if (hemiLight) {
+      // 白天：天空蓝 + 草地绿反射
+      // 夜晚：深蓝 + 深色地面
+      const isDay = config.skyElevation > 20
+      if (isDay) {
+        hemiLight.color.setHex(0xffffff)      // 白色天光
+        hemiLight.groundColor.setHex(0x88aa88) // 亮草地反射
+        hemiLight.intensity = 1.2
+      } else if (config.skyElevation > 0) {
+        hemiLight.color.setHex(0xffaa77)      // 黄昏色
+        hemiLight.groundColor.setHex(0x556655)
+        hemiLight.intensity = 0.8
+      } else {
+        hemiLight.color.setHex(0x334455)      // 夜空色
+        hemiLight.groundColor.setHex(0x222222)
+        hemiLight.intensity = 0.3
+      }
     }
 
     // 更新天空

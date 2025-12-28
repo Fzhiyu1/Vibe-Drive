@@ -8,6 +8,7 @@ import { useTimeOfDay } from '@/composables/three/useTimeOfDay'
 import { useAmbienceLight } from '@/composables/three/useAmbienceLight'
 import { useScentParticles } from '@/composables/three/useScentParticles'
 import { useCarScreen } from '@/composables/three/useCarScreen'
+import { useSpeedEffect } from '@/composables/three/useSpeedEffect'
 
 const store = useVibeStore()
 const { environment, plan } = storeToRefs(store)
@@ -42,17 +43,27 @@ watch(isReady, (ready) => {
   // 车机屏幕
   const carScreen = useCarScreen(interior)
 
+  // 速度效果（告示牌）
+  const speedEffect = useSpeedEffect(scene)
+
   // 注册动画回调
   addToAnimationLoop((delta) => {
     ambienceLight.tick(delta)
     scentParticles.tick(delta)
     carScreen.tick(delta)
+    speedEffect.tick(delta)
   })
 
   // 监听环境变化
   watch(() => environment.value?.timeOfDay, (tod) => {
     console.log('[ThreeVisualizer] timeOfDay changed:', tod)
     if (tod) timeOfDay.updateTime(tod)
+  }, { immediate: true })
+
+  // 监听速度变化
+  watch(() => environment.value?.speed, (speed) => {
+    console.log('[ThreeVisualizer] speed changed:', speed)
+    speedEffect.updateSpeed(speed ?? 0)
   }, { immediate: true })
 
   // 监听灯光变化
