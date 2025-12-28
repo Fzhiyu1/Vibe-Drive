@@ -21,6 +21,26 @@ const scenarios: { type: ScenarioType; label: string }[] = [
 // 行驶模拟场景
 const isDrivingSimulation = ref(false)
 
+// 雨天场景
+function startRainyScene() {
+  store.stopDrivingSimulation()
+  store.setEnvironment({
+    gpsTag: 'HIGHWAY',
+    weather: 'RAINY',
+    speed: 80,
+    userMood: 'CALM',
+    timeOfDay: 'EVENING',
+    passengerCount: 1,
+    routeType: 'HIGHWAY',
+    location: {
+      latitude: 30.27,
+      longitude: 120.15,
+      cityName: '杭州',
+      roadName: 'G60沪昆高速'
+    }
+  })
+}
+
 async function startDrivingSimulation() {
   if (isGenerating.value) return
   isGenerating.value = true
@@ -162,6 +182,14 @@ const getFatigueClass = (level: number) => {
           @click="startDrivingSimulation"
         >
           🚗 上海→杭州
+        </button>
+        <!-- 雨天场景 -->
+        <button
+          class="scenario-btn rainy"
+          :disabled="isGenerating"
+          @click="startRainyScene"
+        >
+          🌧️ 雨夜高速
         </button>
       </div>
 

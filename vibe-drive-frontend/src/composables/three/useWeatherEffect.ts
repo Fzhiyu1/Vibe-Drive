@@ -56,7 +56,8 @@ export function useWeatherEffect(scene: THREE.Scene) {
     for (let i = 0; i < RAIN_CONFIG.count; i++) {
       const i3 = i * 3
       rainPositions[i3] = (Math.random() - 0.5) * RAIN_CONFIG.spread.x
-      rainPositions[i3 + 1] = Math.random() * RAIN_CONFIG.spread.y
+      // Y 位置分布在整个下落范围内，避免同时落下
+      rainPositions[i3 + 1] = -5 + Math.random() * (RAIN_CONFIG.spread.y + 5)
       rainPositions[i3 + 2] = -Math.random() * RAIN_CONFIG.spread.z
     }
 
