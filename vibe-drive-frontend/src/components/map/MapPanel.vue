@@ -107,6 +107,11 @@ function loadRouteAndStart() {
   if (!isRouteLoaded.value) {
     loadRoute()
   }
+  // 先把地图移动到起点（上海）
+  if (map.value) {
+    map.value.setCenter([121.473701, 31.230416])
+    map.value.setZoom(8)
+  }
   startAnimation(duration.value / speed.value, 0)
 }
 

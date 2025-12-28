@@ -9,6 +9,7 @@ import { useAmbienceLight } from '@/composables/three/useAmbienceLight'
 import { useScentParticles } from '@/composables/three/useScentParticles'
 import { useCarScreen } from '@/composables/three/useCarScreen'
 import { useSpeedEffect } from '@/composables/three/useSpeedEffect'
+import { useWeatherEffect } from '@/composables/three/useWeatherEffect'
 
 const store = useVibeStore()
 const { environment, plan } = storeToRefs(store)
@@ -46,12 +47,16 @@ watch(isReady, (ready) => {
   // 速度效果（告示牌）
   const speedEffect = useSpeedEffect(scene)
 
+  // 天气效果（雨/雪/雾）
+  const weatherEffect = useWeatherEffect(scene)
+
   // 注册动画回调
   addToAnimationLoop((delta) => {
     ambienceLight.tick(delta)
     scentParticles.tick(delta)
     carScreen.tick(delta)
     speedEffect.tick(delta)
+    weatherEffect.tick(delta)
   })
 
   // 监听环境变化
@@ -64,6 +69,12 @@ watch(isReady, (ready) => {
   watch(() => environment.value?.speed, (speed) => {
     console.log('[ThreeVisualizer] speed changed:', speed)
     speedEffect.updateSpeed(speed ?? 0)
+  }, { immediate: true })
+
+  // 监听天气变化
+  watch(() => environment.value?.weather, (weather) => {
+    console.log('[ThreeVisualizer] weather changed:', weather)
+    weatherEffect.updateWeather(weather ?? 'SUNNY')
   }, { immediate: true })
 
   // 监听灯光变化
