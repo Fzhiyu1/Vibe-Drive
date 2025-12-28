@@ -98,6 +98,15 @@ watch(() => store.thinkingChain, async () => {
           </div>
         </div>
 
+        <!-- 环境变化检测 -->
+        <div v-else-if="step.type === 'env_change'" class="log-block env-change">
+          <div class="log-header">
+            <span class="time">{{ formatTime(step.timestamp) }}</span>
+            <span class="prefix">[ENV]</span>
+            <span class="label">{{ step.content }}</span>
+          </div>
+        </div>
+
         <!-- Thinking -->
         <div v-else-if="step.type === 'thinking'" class="log-block thinking">
           <div class="log-header">
@@ -254,6 +263,7 @@ watch(() => store.thinkingChain, async () => {
 .log-block.user-input { border-color: #61afef; }
 .log-block.ai-response { border-color: #98c379; }
 .log-block.agent-call { border-color: #c678dd; }
+.log-block.env-change { border-color: #e5c07b; }
 
 .log-header {
   display: flex;
@@ -282,6 +292,7 @@ watch(() => store.thinkingChain, async () => {
 .user-input .prefix { color: #61afef; }
 .ai-response .prefix { color: #98c379; }
 .agent-call .prefix { color: #c678dd; }
+.env-change .prefix { color: #e5c07b; }
 
 .label { color: #d4d4d4; }
 

@@ -60,6 +60,11 @@ async function startDrivingSimulation() {
       longitude: 121.473701,
       cityName: '上海',
       roadName: '人民大道'
+    },
+    biometrics: {
+      heartRate: 72,
+      stressLevel: 0.3,
+      fatigueLevel: 0.2
     }
   })
 

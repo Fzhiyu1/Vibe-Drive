@@ -23,7 +23,7 @@ const isDragging = ref(false)
 const dragOffset = ref({ x: 0, y: 0 })
 
 // 控制状态
-const speed = ref(1)
+const speed = ref(3)
 const duration = ref(60000)
 const currentRoad = ref('')
 const isRouteLoaded = ref(false)
@@ -83,6 +83,10 @@ const presetRoute: RouteStep[] = [
   }
 ]
 
+// 时间和天气变化配置
+const timeProgression = ['AFTERNOON', 'AFTERNOON', 'EVENING', 'EVENING'] as const
+const weatherProgression = ['SUNNY', 'SUNNY', 'CLOUDY', 'RAINY'] as const
+
 onMounted(async () => {
   await init({ center: [120.8, 30.8], zoom: 6 })
 
@@ -92,7 +96,7 @@ onMounted(async () => {
     },
     onStepChange: (index, step) => {
       currentRoad.value = step.road
-      updateEnvironment(step)
+      updateEnvironment(index, step)
     }
   })
 })
@@ -167,7 +171,7 @@ function togglePlay() {
   }
 }
 
-function updateEnvironment(step: RouteStep) {
+function updateEnvironment(stepIndex: number, step: RouteStep) {
   const roadName = step.road
   let gpsTag: 'CITY_ROAD' | 'HIGHWAY' | 'CITY_EXPRESSWAY' = 'CITY_ROAD'
   let cityName = store.environment?.location?.cityName || '上海'
@@ -183,16 +187,43 @@ function updateEnvironment(step: RouteStep) {
 
   const pos = lastPosition.value || [121.473701, 31.230416]
 
-  // 只更新位置信息，保留其他环境数据
+  // 根据路段获取时间和天气
+  const timeOfDay = timeProgression[stepIndex] || 'AFTERNOON'
+  const weather = weatherProgression[stepIndex] || 'SUNNY'
+
+  // 模拟生理数据变化
+  const prevBio = store.environment?.biometrics
+  const baseHR = prevBio?.heartRate ?? 72
+  const baseStress = prevBio?.stressLevel ?? 0.3
+  const baseFatigue = prevBio?.fatigueLevel ?? 0.2
+
+  // 根据路况调整生理数据
+  let hrDelta = (Math.random() - 0.5) * 6
+  let stressDelta = (Math.random() - 0.5) * 0.1
+  let fatigueDelta = 0.02
+
+  if (gpsTag === 'HIGHWAY') {
+    hrDelta += 3
+  }
+
+  const biometrics = {
+    heartRate: Math.round(Math.max(60, Math.min(100, baseHR + hrDelta))),
+    stressLevel: Math.max(0, Math.min(1, baseStress + stressDelta)),
+    fatigueLevel: Math.max(0, Math.min(1, baseFatigue + fatigueDelta))
+  }
+
   store.setEnvironment({
     gpsTag,
+    timeOfDay,
+    weather,
     location: {
       ...store.environment?.location,
       latitude: pos[1],
       longitude: pos[0],
       cityName,
       roadName
-    }
+    },
+    biometrics
   })
 }
 

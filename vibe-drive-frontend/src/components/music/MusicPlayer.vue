@@ -110,6 +110,21 @@ function playSongAt(index: number) {
         </button>
         <button class="ctrl-btn" :disabled="!hasNext" @click="playNext">⏭</button>
       </div>
+
+      <!-- 音量控制 -->
+      <div class="volume-control">
+        <span class="volume-icon">🔊</span>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          :value="store.audioVolume"
+          @input="store.setVolume(Number(($event.target as HTMLInputElement).value))"
+          class="volume-slider"
+        />
+        <span class="volume-value">{{ Math.round(store.audioVolume * 100) }}%</span>
+      </div>
     </div>
 
     <div v-else class="no-music">
@@ -307,5 +322,40 @@ function playSongAt(index: number) {
 .ctrl-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.volume-icon {
+  font-size: 0.9rem;
+}
+
+.volume-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.volume-value {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  width: 2.5rem;
+  text-align: right;
 }
 </style>
