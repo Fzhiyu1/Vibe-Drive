@@ -16,6 +16,7 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
+    "@amap/amap-jsapi-loader": "^1.0.1",
     "@tresjs/core": "^5.2.0",
     "pinia": "^3.0.4",
     "three": "^0.182.0",

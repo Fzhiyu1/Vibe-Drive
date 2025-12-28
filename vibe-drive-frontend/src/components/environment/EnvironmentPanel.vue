@@ -18,10 +18,44 @@ const scenarios: { type: ScenarioType; label: string }[] = [
   { type: 'MORNING_COMMUTE', label: '通勤早高峰' },
 ]
 
+// 行驶模拟场景
+const isDrivingSimulation = ref(false)
+
+async function startDrivingSimulation() {
+  if (isGenerating.value) return
+  isGenerating.value = true
+  isDrivingSimulation.value = true
+
+  // 设置上海→杭州的初始环境
+  store.setEnvironment({
+    gpsTag: 'CITY_ROAD',
+    weather: 'SUNNY',
+    speed: 60,
+    userMood: 'CALM',
+    timeOfDay: 'AFTERNOON',
+    passengerCount: 1,
+    routeType: 'HIGHWAY',
+    location: {
+      latitude: 31.230416,
+      longitude: 121.473701,
+      cityName: '上海',
+      roadName: '人民大道'
+    }
+  })
+
+  // 通知 MapPanel 开始模拟
+  store.startDrivingSimulation()
+  isGenerating.value = false
+}
+
 // 加载预设场景
 async function loadScenario(type: ScenarioType) {
   if (isGenerating.value) return
   isGenerating.value = true
+
+  // 停止行驶模拟
+  store.stopDrivingSimulation()
+
   try {
     const env = await vibeApi.getScenario(type)
     store.setEnvironment(env)
@@ -36,6 +70,9 @@ async function loadScenario(type: ScenarioType) {
 async function generateEnvironment() {
   if (!aiPrompt.value.trim() || isGenerating.value) return
   isGenerating.value = true
+
+  // 停止行驶模拟
+  store.stopDrivingSimulation()
   try {
     const env = await vibeApi.generateEnvironment(aiPrompt.value)
     store.setEnvironment(env)
@@ -117,6 +154,14 @@ const getFatigueClass = (level: number) => {
           @click="loadScenario(s.type)"
         >
           {{ s.label }}
+        </button>
+        <!-- 行驶模拟场景 -->
+        <button
+          class="scenario-btn driving"
+          :disabled="isGenerating"
+          @click="startDrivingSimulation"
+        >
+          🚗 上海→杭州
         </button>
       </div>
 

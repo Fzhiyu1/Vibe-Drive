@@ -22,6 +22,14 @@ public class EnvironmentGeneratorTool {
         - 高速场景：gpsTag 设为 highway，车速 80-120
         - 堵车场景：车速 0-30，压力水平较高
         - 家庭出游：乘客数 3-5，情绪 happy
+
+        常用城市坐标参考：
+        - 上海：latitude=31.23, longitude=121.47
+        - 北京：latitude=39.90, longitude=116.40
+        - 杭州：latitude=30.27, longitude=120.15
+        - 深圳：latitude=22.54, longitude=114.06
+        - 广州：latitude=23.13, longitude=113.26
+        - 成都：latitude=30.57, longitude=104.07
         """)
     public Environment generateEnvironment(
             @P("位置类型: highway/tunnel/bridge/urban/suburban/mountain/coastal/parking") String gpsTag,
@@ -32,6 +40,8 @@ public class EnvironmentGeneratorTool {
             @P("乘客数量 (1-7)") int passengerCount,
             @P("城市名称，如：上海市、北京市") String cityName,
             @P("道路名称，如：沪杭高速、南京路") String roadName,
+            @P("纬度，根据城市设置，如上海31.23、杭州30.27") double latitude,
+            @P("经度，根据城市设置，如上海121.47、杭州120.15") double longitude,
             @P("心率 bpm (60-120)") int heartRate,
             @P("压力水平 (0.0-1.0)") double stressLevel,
             @P("疲劳水平 (0.0-1.0)") double fatigueLevel
@@ -52,8 +62,8 @@ public class EnvironmentGeneratorTool {
 
         // 构建位置信息
         LocationInfo location = LocationInfo.builder()
-                .latitude(31.2304)
-                .longitude(121.4737)
+                .latitude(latitude != 0 ? latitude : 31.2304)
+                .longitude(longitude != 0 ? longitude : 121.4737)
                 .cityName(cityName != null ? cityName : "未知城市")
                 .roadName(roadName != null ? roadName : "未知道路")
                 .build();

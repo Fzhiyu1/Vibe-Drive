@@ -11,6 +11,7 @@ import MassageDisplay from '@/components/massage/MassageDisplay.vue'
 import ThinkingChain from '@/components/agent/ThinkingChain.vue'
 import ScenarioModal from '@/components/environment/ScenarioModal.vue'
 import VoiceInput from '@/components/voice/VoiceInput.vue'
+import MapPanel from '@/components/map/MapPanel.vue'
 import type { Environment } from '@/types/api'
 
 const store = useVibeStore()
@@ -56,6 +57,8 @@ function handleSelect(env: Environment) {
 
     <template #ambience>
       <ThreeVisualizer />
+      <!-- 可拖拽地图面板 -->
+      <MapPanel class="map-draggable" />
     </template>
 
     <template #music>
@@ -88,6 +91,16 @@ function handleSelect(env: Environment) {
 </template>
 
 <style scoped>
+.map-draggable {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 300px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: move;
+}
+
 .demo-controls {
   margin-top: auto;
   padding-top: 1rem;

@@ -28,6 +28,7 @@ export const useVibeStore = defineStore('vibe', () => {
   const theme = ref<'light' | 'dark'>('light')
   const demoMode = ref(false)
   const chainExpanded = ref(false)
+  const drivingSimulationActive = ref(false)
 
   // ============ 音频管理 ============
   const audio = new Audio()
@@ -574,6 +575,9 @@ export const useVibeStore = defineStore('vibe', () => {
     analyzeStream,
     analyze,
     toggleTheme,
+    startDrivingSimulation: () => { drivingSimulationActive.value = true },
+    stopDrivingSimulation: () => { drivingSimulationActive.value = false },
+    drivingSimulationActive,
     resetSession,
     sendMessage,
     // 音频控制
