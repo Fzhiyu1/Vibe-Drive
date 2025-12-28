@@ -76,14 +76,42 @@ npm run dev
 
 ### 后端配置
 
-编辑 `vibe-drive-backend/src/main/resources/application.yml`：
+1. 复制配置模板：
+
+```bash
+cd vibe-drive-backend/src/main/resources
+cp application.yml.example application.yml
+```
+
+2. 编辑 `application.yml`，配置 API Key：
 
 ```yaml
 langchain4j:
+  # 模型提供商: openai / anthropic
+  provider: anthropic
+
+  # OpenAI 配置 (支持 DeepSeek 等兼容 API)
   open-ai:
     chat-model:
-      api-key: your-api-key  # DeepSeek API Key
+      base-url: https://api.deepseek.com
+      api-key: your-deepseek-api-key
+      model-name: deepseek-chat
+
+  # Anthropic 配置
+  anthropic:
+    chat-model:
+      base-url: https://api.anthropic.com
+      api-key: your-anthropic-api-key
+      model-name: claude-opus-4-5-20251101
 ```
+
+### 模型降级机制
+
+系统支持自动模型降级：
+- 主模型失败时自动切换到降级模型
+- 5 分钟冷却后尝试恢复主模型
+- `provider: anthropic` → 主模型 Claude，降级到 DeepSeek
+- `provider: openai` → 主模型 DeepSeek，降级到 Claude
 
 ## 访问
 
