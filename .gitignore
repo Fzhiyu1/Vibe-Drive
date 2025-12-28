@@ -17,6 +17,11 @@ node_modules/
 .env.local
 .env.*.local
 
+# Sensitive config (contains API keys)
+**/application.yml
+**/application-*.yml
+!**/application.yml.example
+
 # Logs
 *.log
 logs/

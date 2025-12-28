@@ -5,25 +5,36 @@ spring:
   application:
     name: vibe-drive
   jackson:
-    # 禁用自动检测 getter 方法，避免计算方法被序列化
     visibility:
       getter: none
       is-getter: none
       field: any
-    # 序列化配置
     serialization:
       write-dates-as-timestamps: false
-    # 反序列化配置
     deserialization:
       fail-on-unknown-properties: false
 
 # LangChain4j Configuration
 langchain4j:
+  # 模型提供商: openai / anthropic
+  provider: openai
+
+  # OpenAI 配置 (也支持 DeepSeek 等兼容 API)
   open-ai:
     chat-model:
-      base-url: https://api.deepseek.com
-      api-key: sk-45bc3912cb954ca9868c52f571b6d7af
-      model-name: deepseek-chat
+      base-url: https://api.openai.com/v1
+      api-key: your-api-key-here
+      model-name: gpt-4o-mini
+      temperature: 0.7
+      log-requests: true
+      log-responses: true
+
+  # Anthropic 配置
+  anthropic:
+    chat-model:
+      base-url: https://api.anthropic.com
+      api-key: your-api-key-here
+      model-name: claude-haiku-4-5-20251001
       temperature: 0.7
       log-requests: true
       log-responses: true
