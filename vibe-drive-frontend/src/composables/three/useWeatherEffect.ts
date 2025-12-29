@@ -156,37 +156,37 @@ export function useWeatherEffect(scene: THREE.Scene) {
     if (config.particles === 'rain' && rainPositions && rainParticles) {
       for (let i = 0; i < RAIN_CONFIG.count; i++) {
         const i3 = i * 3
-        rainPositions[i3 + 1] -= RAIN_CONFIG.speed * clampedDelta * 60
+        rainPositions[i3 + 1] = (rainPositions[i3 + 1] ?? 0) - RAIN_CONFIG.speed * clampedDelta * 60
 
         // 重置到顶部
-        if (rainPositions[i3 + 1] < 0) {
+        if ((rainPositions[i3 + 1] ?? 0) < 0) {
           rainPositions[i3] = (Math.random() - 0.5) * RAIN_CONFIG.spread.x
           rainPositions[i3 + 1] = RAIN_CONFIG.spread.y
           rainPositions[i3 + 2] = -Math.random() * RAIN_CONFIG.spread.z
         }
       }
-      rainParticles.geometry.attributes.position.needsUpdate = true
+      rainParticles.geometry.attributes.position!.needsUpdate = true
     }
 
     // 更新雪花
     if (config.particles === 'snow' && snowPositions && snowDrifts && snowParticles) {
       for (let i = 0; i < SNOW_CONFIG.count; i++) {
         const i3 = i * 3
-        snowPositions[i3 + 1] -= SNOW_CONFIG.speed * clampedDelta * 60
+        snowPositions[i3 + 1] = (snowPositions[i3 + 1] ?? 0) - SNOW_CONFIG.speed * clampedDelta * 60
 
         // 横向漂移（正弦波动）
-        snowDrifts[i] += clampedDelta * 2
-        snowPositions[i3] += Math.sin(snowDrifts[i]) * SNOW_CONFIG.drift * clampedDelta * 60
+        snowDrifts[i] = (snowDrifts[i] ?? 0) + clampedDelta * 2
+        snowPositions[i3] = (snowPositions[i3] ?? 0) + Math.sin(snowDrifts[i] ?? 0) * SNOW_CONFIG.drift * clampedDelta * 60
 
         // 重置到顶部
-        if (snowPositions[i3 + 1] < 0) {
+        if ((snowPositions[i3 + 1] ?? 0) < 0) {
           snowPositions[i3] = (Math.random() - 0.5) * SNOW_CONFIG.spread.x
           snowPositions[i3 + 1] = SNOW_CONFIG.spread.y
           snowPositions[i3 + 2] = -Math.random() * SNOW_CONFIG.spread.z
           snowDrifts[i] = Math.random() * Math.PI * 2
         }
       }
-      snowParticles.geometry.attributes.position.needsUpdate = true
+      snowParticles.geometry.attributes.position!.needsUpdate = true
     }
   }
 

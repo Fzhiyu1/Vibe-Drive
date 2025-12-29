@@ -70,7 +70,7 @@ function handleWelcomeAccept() {
       <!-- 演示控制 -->
       <div class="demo-controls">
         <button
-          v-if="!store.agentRunning"
+          v-if="!store.vibeRunning"
           class="demo-btn"
           @click="startDemo"
         >

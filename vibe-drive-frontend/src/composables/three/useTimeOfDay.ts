@@ -104,10 +104,10 @@ export function useTimeOfDay(context: SceneContext, options?: UseTimeOfDayOption
   scene.add(sky)
 
   const skyUniforms = sky.material.uniforms
-  skyUniforms['turbidity'].value = 1
-  skyUniforms['rayleigh'].value = 0.5
-  skyUniforms['mieCoefficient'].value = 0.003
-  skyUniforms['mieDirectionalG'].value = 0.65
+  skyUniforms['turbidity']!.value = 1
+  skyUniforms['rayleigh']!.value = 0.5
+  skyUniforms['mieCoefficient']!.value = 0.003
+  skyUniforms['mieDirectionalG']!.value = 0.65
 
   // 初始化光源
   ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
@@ -180,7 +180,7 @@ export function useTimeOfDay(context: SceneContext, options?: UseTimeOfDayOption
       const theta = THREE.MathUtils.degToRad(config.skyAzimuth)
       const sunVector = new THREE.Vector3()
       sunVector.setFromSphericalCoords(1, phi, theta)
-      sky.material.uniforms['sunPosition'].value.copy(sunVector)
+      sky.material.uniforms['sunPosition']!.value.copy(sunVector)
 
       // 夜晚隐藏天空
       if (config.skyElevation < -10) {

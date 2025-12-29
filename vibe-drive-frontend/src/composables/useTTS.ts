@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 
-const TTS_API_BASE = 'http://localhost:3002'
+// 生产环境通过 nginx 代理，开发环境直连
+const TTS_API_BASE = import.meta.env.DEV ? 'http://localhost:3002' : '/tts'
 
 /**
  * TTS 播放（流式版本，支持语音队列）
@@ -33,7 +34,7 @@ export function useTTS() {
           )
         }
         try {
-          sourceBuffer.appendBuffer(chunk)
+          sourceBuffer.appendBuffer(chunk as unknown as ArrayBuffer)
         } catch (e) {
           console.warn('[TTS] appendBuffer failed:', e)
           break

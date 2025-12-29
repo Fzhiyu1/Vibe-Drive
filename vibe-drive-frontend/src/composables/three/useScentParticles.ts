@@ -225,16 +225,16 @@ export function useScentParticles(scene: THREE.Scene): UseScentParticlesReturn {
 
     for (let i = 0; i < activeCount; i++) {
       const i3 = i * 3
-      particlePositions[i3] += particleVelocities[i3] * delta * 10
-      particlePositions[i3 + 1] += particleVelocities[i3 + 1] * delta * 10
-      particlePositions[i3 + 2] += particleVelocities[i3 + 2] * delta * 10
+      particlePositions[i3] = particlePositions[i3]! + particleVelocities[i3]! * delta * 10
+      particlePositions[i3 + 1] = particlePositions[i3 + 1]! + particleVelocities[i3 + 1]! * delta * 10
+      particlePositions[i3 + 2] = particlePositions[i3 + 2]! + particleVelocities[i3 + 2]! * delta * 10
 
-      if (particlePositions[i3 + 1] > 2.0) {
+      if (particlePositions[i3 + 1]! > 2.0) {
         resetParticle(i)
       }
     }
 
-    particles.geometry.attributes.position.needsUpdate = true
+    particles.geometry.attributes.position!.needsUpdate = true
   }
 
   function dispose() {

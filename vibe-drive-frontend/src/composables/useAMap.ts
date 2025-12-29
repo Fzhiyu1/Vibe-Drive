@@ -136,7 +136,7 @@ export function useAMap(containerId: string) {
     })
     map.value.add(marker.value)
 
-    currentPosition.value = fullPath[0]
+    currentPosition.value = fullPath[0] ?? null
     currentStepIndex.value = 0
   }
 
@@ -234,14 +234,16 @@ export function useAMap(containerId: string) {
     // 计算当前位置属于哪个路段
     let accumulatedPoints = 0
     for (let i = 0; i < routeSteps.length; i++) {
-      const stepPoints = routeSteps[i].polyline.split(';').length
+      const step = routeSteps[i]
+      if (!step) continue
+      const stepPoints = step.polyline.split(';').length
       accumulatedPoints += stepPoints
 
       if (currentIndex < accumulatedPoints) {
         // 只在路段真正变化时触发
         if (i !== currentStepIndex.value) {
           currentStepIndex.value = i
-          handlers.onStepChange?.(i, routeSteps[i])
+          handlers.onStepChange?.(i, step)
         }
         break
       }
