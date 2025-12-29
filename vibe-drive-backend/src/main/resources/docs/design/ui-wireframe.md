@@ -1,0 +1,716 @@
+# Vibe Drive 前端界面设计
+
+## 1. 概述
+
+本文档定义 Vibe Drive 车载横屏 UI 的界面设计，包括布局、组件和交互规范。
+
+### 1.1 设计原则
+
+- **安全优先**：不干扰驾驶，信息层级清晰
+- **沉浸体验**：氛围灯动效与音乐联动
+- **简洁直观**：大字体、大按钮、易操作
+- **响应式**：适配不同车载屏幕尺寸
+
+### 1.2 目标屏幕
+
+- **主要**：车载横屏 1920×720 / 1280×480
+- **次要**：平板横屏 1024×768
+
+---
+
+## 2. 页面布局
+
+### 2.1 整体布局（横屏）
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              顶部状态栏 (60px)                           │
+│  [安全模式指示]              [时间]              [环境状态]              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────┐  ┌─────────────────────────────────────────┐  │
+│  │                     │  │                                         │  │
+│  │                     │  │                                         │  │
+│  │    氛围灯可视化      │  │           音乐播放区域                   │  │
+│  │    (Three.js)       │  │                                         │  │
+│  │                     │  │  ┌─────────────────────────────────┐   │  │
+│  │    400×400          │  │  │         专辑封面                 │   │  │
+│  │                     │  │  │         200×200                 │   │  │
+│  │                     │  │  └─────────────────────────────────┘   │  │
+│  │                     │  │                                         │  │
+│  │                     │  │  歌曲名称 - 艺术家                       │  │
+│  │                     │  │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │  │
+│  │                     │  │  02:35 ─────────●───────────── 04:12   │  │
+│  │                     │  │                                         │  │
+│  │                     │  │     [上一首]  [播放/暂停]  [下一首]      │  │
+│  └─────────────────────┘  └─────────────────────────────────────────┘  │
+│                                                                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                              底部信息栏 (80px)                           │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  💬 "夜深了，窗外的雨声和这首歌很配，让音乐陪你安全到家。"        │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  [环境: 高速·雨天·深夜]     [Agent 状态: 运行中]     [设置]            │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 区域说明
+
+| 区域 | 尺寸 | 说明 |
+|------|------|------|
+| 顶部状态栏 | 100% × 60px | 安全模式、时间、环境概览 |
+| 氛围灯区域 | 400px × 400px | Three.js 3D 灯光可视化 |
+| 音乐播放区 | 剩余宽度 | 封面、歌曲信息、控制按钮 |
+| 底部信息栏 | 100% × 80px | 叙事文本、环境标签、设置入口 |
+
+---
+
+## 3. 组件设计
+
+### 3.1 安全模式指示器
+
+```
+┌─────────────────────────────────────┐
+│  L1 正常模式                        │  ← 绿色背景
+│  ● 全功能开放                       │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│  L2 专注模式                        │  ← 黄色背景
+│  ⚠ 已禁用视觉动效                   │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│  L3 静默模式                        │  ← 红色背景
+│  🔇 高速行驶中                      │
+└─────────────────────────────────────┘
+```
+
+**React 组件**
+
+```tsx
+interface SafetyModeIndicatorProps {
+  mode: 'L1_NORMAL' | 'L2_FOCUS' | 'L3_SILENT';
+  speed: number;
+}
+
+const SafetyModeIndicator: React.FC<SafetyModeIndicatorProps> = ({ mode, speed }) => {
+  const config = {
+    L1_NORMAL: { label: '正常模式', color: '#4CAF50', icon: '●' },
+    L2_FOCUS: { label: '专注模式', color: '#FFC107', icon: '⚠' },
+    L3_SILENT: { label: '静默模式', color: '#F44336', icon: '🔇' },
+  };
+
+  const { label, color, icon } = config[mode];
+
+  return (
+    <div className="safety-indicator" style={{ backgroundColor: color }}>
+      <span className="icon">{icon}</span>
+      <span className="label">{label}</span>
+      <span className="speed">{speed} km/h</span>
+    </div>
+  );
+};
+```
+
+### 3.2 氛围灯可视化（Three.js）
+
+```
+┌─────────────────────────────────────┐
+│                                     │
+│           ╭─────────╮               │
+│          ╱           ╲              │
+│         │   ◉ 光源    │             │
+│          ╲           ╱              │
+│           ╰─────────╯               │
+│                                     │
+│      呼吸效果 / 渐变效果 / 脉冲      │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+**React Three Fiber 组件**
+
+```tsx
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+
+interface AmbienceLightProps {
+  color: string;
+  brightness: number;
+  mode: 'static' | 'breathing' | 'gradient' | 'pulse';
+}
+
+const AmbienceLight: React.FC<AmbienceLightProps> = ({ color, brightness, mode }) => {
+  return (
+    <Canvas>
+      <ambientLight intensity={0.1} />
+      <pointLight position={[0, 0, 0]} color={color} intensity={brightness / 100} />
+      <mesh>
+        <sphereGeometry args={[1, 32, 32]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={brightness / 100}
+          transparent
+          opacity={0.8}
+        />
+      </mesh>
+      <OrbitControls enableZoom={false} enablePan={false} />
+    </Canvas>
+  );
+};
+```
+
+### 3.3 音乐播放器
+
+```
+┌─────────────────────────────────────────────────────┐
+│                                                     │
+│         ┌─────────────────────┐                     │
+│         │                     │                     │
+│         │    🎵 专辑封面       │                     │
+│         │                     │                     │
+│         │    200 × 200        │                     │
+│         │                     │                     │
+│         └─────────────────────┘                     │
+│                                                     │
+│              夜空中最亮的星                          │
+│              逃跑计划 · 世界                         │
+│                                                     │
+│    02:35 ━━━━━━━━━━●━━━━━━━━━━━━━━━ 04:12          │
+│                                                     │
+│         ⏮️        ▶️ / ⏸️        ⏭️                │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**React 组件**
+
+```tsx
+interface MusicPlayerProps {
+  song: {
+    title: string;
+    artist: string;
+    album: string;
+    coverUrl: string;
+    duration: number;
+  };
+  currentTime: number;
+  isPlaying: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
+}
+
+const MusicPlayer: React.FC<MusicPlayerProps> = ({
+  song,
+  currentTime,
+  isPlaying,
+  onPlay,
+  onPause,
+  onNext,
+  onPrevious,
+}) => {
+  return (
+    <div className="music-player">
+      <img src={song.coverUrl} alt={song.album} className="cover" />
+      <div className="info">
+        <h2 className="title">{song.title}</h2>
+        <p className="artist">{song.artist} · {song.album}</p>
+      </div>
+      <div className="progress">
+        <span>{formatTime(currentTime)}</span>
+        <input
+          type="range"
+          min={0}
+          max={song.duration}
+          value={currentTime}
+          className="slider"
+        />
+        <span>{formatTime(song.duration)}</span>
+      </div>
+      <div className="controls">
+        <button onClick={onPrevious}>⏮️</button>
+        <button onClick={isPlaying ? onPause : onPlay}>
+          {isPlaying ? '⏸️' : '▶️'}
+        </button>
+        <button onClick={onNext}>⏭️</button>
+      </div>
+    </div>
+  );
+};
+```
+
+### 3.4 叙事文本展示
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│  💬 "夜深了，窗外的雨声和这首歌很配，让音乐陪你安全到家。"           │
+│                                                                     │
+│                                              ── Vibe Drive          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**React 组件**
+
+```tsx
+interface NarrativeDisplayProps {
+  text: string;
+  isVisible: boolean;
+  onDismiss: () => void;
+}
+
+const NarrativeDisplay: React.FC<NarrativeDisplayProps> = ({
+  text,
+  isVisible,
+  onDismiss,
+}) => {
+  if (!isVisible) return null;
+
+  return (
+    <div className="narrative-display" onClick={onDismiss}>
+      <span className="icon">💬</span>
+      <p className="text">"{text}"</p>
+      <span className="signature">── Vibe Drive</span>
+    </div>
+  );
+};
+```
+
+### 3.5 环境状态标签
+
+```
+┌─────────────────────────────────────────────────────┐
+│  🛣️ 高速公路  │  🌧️ 雨天  │  🌙 深夜  │  😴 疲劳   │
+└─────────────────────────────────────────────────────┘
+```
+
+**React 组件**
+
+```tsx
+interface EnvironmentTagsProps {
+  environment: {
+    gpsTag: string;
+    weather: string;
+    timeOfDay: string;
+    userMood: string;
+  };
+}
+
+const EnvironmentTags: React.FC<EnvironmentTagsProps> = ({ environment }) => {
+  const tags = [
+    { icon: getGpsIcon(environment.gpsTag), label: getGpsLabel(environment.gpsTag) },
+    { icon: getWeatherIcon(environment.weather), label: getWeatherLabel(environment.weather) },
+    { icon: getTimeIcon(environment.timeOfDay), label: getTimeLabel(environment.timeOfDay) },
+    { icon: getMoodIcon(environment.userMood), label: getMoodLabel(environment.userMood) },
+  ];
+
+  return (
+    <div className="environment-tags">
+      {tags.map((tag, index) => (
+        <span key={index} className="tag">
+          {tag.icon} {tag.label}
+        </span>
+      ))}
+    </div>
+  );
+};
+```
+
+---
+
+## 4. 交互设计
+
+### 4.1 氛围切换动画
+
+```
+当前氛围 ──────────────────→ 新氛围
+         │                    │
+         │  淡出 (500ms)      │
+         │  ────────────→     │
+         │                    │
+         │  淡入 (500ms)      │
+         │  ←────────────     │
+         │                    │
+```
+
+### 4.2 安全模式切换
+
+```
+L1 → L2:
+  - 灯光动效停止，过渡到静态
+  - 显示提示："已进入专注模式"
+
+L2 → L3:
+  - 灯光区域变暗
+  - 显示提示："高速行驶中，已进入静默模式"
+  - 叙事文本音量降低
+
+L3 → L1:
+  - 灯光区域恢复
+  - 显示提示："已恢复正常模式"
+```
+
+### 4.3 手势操作
+
+| 手势 | 操作 |
+|------|------|
+| 左滑 | 下一首 |
+| 右滑 | 上一首 |
+| 点击叙事文本 | 关闭/重播 |
+| 长按灯光区域 | 打开灯光设置 |
+
+---
+
+## 5. 调试面板（开发模式）
+
+### 5.1 布局
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  [调试面板]                                                    [收起 ▼] │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  环境模拟器                                                             │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ GPS: [高速公路 ▼]  天气: [雨天 ▼]  车速: [====●====] 85 km/h    │   │
+│  │ 情绪: [疲劳 ▼]     时段: [深夜 ▼]  乘客: [1 ▼]                  │   │
+│  │                                                                 │   │
+│  │ [应用环境]  [随机生成]  [预设场景 ▼]                            │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  Agent 推理过程                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ 检测到深夜+雨天+疲劳状态，用户需要放松舒缓的氛围...              │   │
+│  │ 选择舒缓的爵士乐帮助放松但不至于昏昏欲睡...                      │   │
+│  │ 车速 85km/h 处于 L2 专注模式，禁用动态灯光...                    │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  API 日志                                                               │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │ [10:30:01] POST /api/vibe/analyze - 200 OK (1850ms)             │   │
+│  │ [10:30:01] Tool: recommend_music - 5 songs returned             │   │
+│  │ [10:30:01] Tool: set_light - static mode applied                │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 React 组件
+
+```tsx
+interface DebugPanelProps {
+  isOpen: boolean;
+  onToggle: () => void;
+  environment: Environment;
+  onEnvironmentChange: (env: Environment) => void;
+  reasoning: string;
+  apiLogs: ApiLog[];
+}
+
+const DebugPanel: React.FC<DebugPanelProps> = ({
+  isOpen,
+  onToggle,
+  environment,
+  onEnvironmentChange,
+  reasoning,
+  apiLogs,
+}) => {
+  const presets = [
+    { id: 'midnight_rain', label: '深夜雨天高速' },
+    { id: 'morning_sunny', label: '早晨晴天通勤' },
+    { id: 'family_trip', label: '周末家庭出游' },
+  ];
+
+  return (
+    <div className={`debug-panel ${isOpen ? 'open' : 'collapsed'}`}>
+      <div className="header" onClick={onToggle}>
+        <span>调试面板</span>
+        <span>{isOpen ? '▼' : '▲'}</span>
+      </div>
+
+      {isOpen && (
+        <div className="content">
+          <EnvironmentSimulator
+            environment={environment}
+            onChange={onEnvironmentChange}
+            presets={presets}
+          />
+
+          <div className="section">
+            <h3>Agent 推理过程</h3>
+            <pre className="reasoning">{reasoning}</pre>
+          </div>
+
+          <div className="section">
+            <h3>API 日志</h3>
+            <div className="logs">
+              {apiLogs.map((log, i) => (
+                <div key={i} className="log-entry">
+                  [{log.timestamp}] {log.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+## 6. 组件结构
+
+```
+src/
+├── components/
+│   ├── layout/
+│   │   ├── Header.tsx           # 顶部状态栏
+│   │   ├── Footer.tsx           # 底部信息栏
+│   │   └── MainLayout.tsx       # 主布局
+│   │
+│   ├── ambience/
+│   │   ├── AmbienceLight.tsx    # 氛围灯 3D 可视化
+│   │   ├── LightPreview.tsx     # 灯光预览
+│   │   └── LightSettings.tsx    # 灯光设置面板
+│   │
+│   ├── music/
+│   │   ├── MusicPlayer.tsx      # 音乐播放器
+│   │   ├── SongInfo.tsx         # 歌曲信息
+│   │   ├── ProgressBar.tsx      # 进度条
+│   │   └── PlaylistDrawer.tsx   # 播放列表抽屉
+│   │
+│   ├── status/
+│   │   ├── SafetyModeIndicator.tsx  # 安全模式指示
+│   │   ├── EnvironmentTags.tsx      # 环境标签
+│   │   └── AgentStatus.tsx          # Agent 状态
+│   │
+│   ├── narrative/
+│   │   ├── NarrativeDisplay.tsx     # 叙事文本展示
+│   │   └── NarrativeHistory.tsx     # 叙事历史
+│   │
+│   └── debug/
+│       ├── DebugPanel.tsx           # 调试面板
+│       ├── EnvironmentSimulator.tsx # 环境模拟器
+│       └── ApiLogger.tsx            # API 日志
+│
+├── hooks/
+│   ├── useVibe.ts               # Vibe API 调用
+│   ├── useSseEvents.ts          # SSE 事件订阅
+│   ├── useAmbience.ts           # 氛围状态管理
+│   └── useEnvironment.ts        # 环境数据管理
+│
+├── store/
+│   ├── vibeStore.ts             # Zustand 状态管理
+│   └── types.ts                 # 类型定义
+│
+├── services/
+│   ├── vibeApi.ts               # API 服务
+│   └── sse.ts                   # SSE 服务
+│
+├── styles/
+│   ├── global.css               # 全局样式
+│   ├── variables.css            # CSS 变量
+│   └── components/              # 组件样式
+│
+└── App.tsx                      # 主应用
+```
+
+---
+
+## 7. 样式规范
+
+### 7.1 颜色系统
+
+```css
+:root {
+  /* 主色调 */
+  --primary: #6366F1;
+  --primary-light: #818CF8;
+  --primary-dark: #4F46E5;
+
+  /* 安全模式颜色 */
+  --safety-l1: #4CAF50;  /* 绿色 - 正常 */
+  --safety-l2: #FFC107;  /* 黄色 - 专注 */
+  --safety-l3: #F44336;  /* 红色 - 静默 */
+
+  /* 背景 */
+  --bg-primary: #0F0F0F;
+  --bg-secondary: #1A1A1A;
+  --bg-card: #252525;
+
+  /* 文字 */
+  --text-primary: #FFFFFF;
+  --text-secondary: #A0A0A0;
+  --text-muted: #666666;
+
+  /* 氛围灯预设 */
+  --light-warm: #FFE4B5;
+  --light-cool: #87CEEB;
+  --light-energy: #FFD700;
+  --light-calm: #98FB98;
+}
+```
+
+### 7.2 字体规范
+
+```css
+:root {
+  --font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* 字号 */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 20px;
+  --font-size-xl: 24px;
+  --font-size-2xl: 32px;
+
+  /* 行高 */
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-loose: 1.8;
+}
+
+/* 车载屏幕优化：大字体 */
+.car-display {
+  font-size: var(--font-size-lg);
+}
+
+.car-display .title {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+}
+```
+
+### 7.3 间距规范
+
+```css
+:root {
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+}
+```
+
+---
+
+## 8. 响应式适配
+
+### 8.1 断点定义
+
+```css
+/* 车载屏幕 */
+@media (min-width: 1280px) {
+  /* 大屏车机 1920×720 */
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  /* 中屏车机 1280×480 */
+}
+
+@media (max-width: 1023px) {
+  /* 平板/小屏 */
+}
+```
+
+### 8.2 布局适配
+
+```tsx
+const useResponsiveLayout = () => {
+  const [layout, setLayout] = useState<'large' | 'medium' | 'small'>('large');
+
+  useEffect(() => {
+    const updateLayout = () => {
+      const width = window.innerWidth;
+      if (width >= 1280) setLayout('large');
+      else if (width >= 1024) setLayout('medium');
+      else setLayout('small');
+    };
+
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+    return () => window.removeEventListener('resize', updateLayout);
+  }, []);
+
+  return layout;
+};
+```
+
+---
+
+## 9. 性能优化
+
+### 9.1 Three.js 优化
+
+```tsx
+// 降低渲染频率（L2/L3 模式）
+const AmbienceLight: React.FC<Props> = ({ mode }) => {
+  const frameLimit = mode === 'L1_NORMAL' ? 60 : 30;
+
+  return (
+    <Canvas frameloop={mode === 'L3_SILENT' ? 'demand' : 'always'}>
+      {/* ... */}
+    </Canvas>
+  );
+};
+```
+
+### 9.2 组件懒加载
+
+```tsx
+const DebugPanel = lazy(() => import('./components/debug/DebugPanel'));
+
+// 仅开发模式加载
+{process.env.NODE_ENV === 'development' && (
+  <Suspense fallback={null}>
+    <DebugPanel />
+  </Suspense>
+)}
+```
+
+---
+
+## 10. 无障碍设计
+
+### 10.1 语音反馈
+
+```tsx
+// 安全模式切换时的语音提示
+const useSafetyModeAnnouncement = (mode: SafetyMode) => {
+  useEffect(() => {
+    const messages = {
+      L1_NORMAL: '已恢复正常模式',
+      L2_FOCUS: '已进入专注模式，视觉效果已禁用',
+      L3_SILENT: '高速行驶中，已进入静默模式',
+    };
+
+    // 使用 TTS 或屏幕阅读器
+    announce(messages[mode]);
+  }, [mode]);
+};
+```
+
+### 10.2 高对比度模式
+
+```css
+@media (prefers-contrast: high) {
+  :root {
+    --bg-primary: #000000;
+    --text-primary: #FFFFFF;
+    --safety-l1: #00FF00;
+    --safety-l2: #FFFF00;
+    --safety-l3: #FF0000;
+  }
+}
+```

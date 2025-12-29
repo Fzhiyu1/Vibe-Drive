@@ -14,10 +14,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+
 import java.io.IOException;
-import java.nio.file.*;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.ArrayList;
 
 /**
  * 知识库服务
@@ -53,39 +57,35 @@ public class KnowledgeStore {
     }
 
     /**
-     * 加载文档并建立索引
+     * 加载文档并建立索引（支持 JAR 包内的 classpath 资源）
      */
     private void loadDocuments() throws IOException {
-        Path basePath = Paths.get(docsPath);
-        if (!Files.exists(basePath)) {
-            log.warn("文档目录不存在: {}", basePath.toAbsolutePath());
+        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        String pattern = "classpath*:" + docsPath + "/**/*.md";
+
+        log.info("扫描文档: {}", pattern);
+        Resource[] resources = resolver.getResources(pattern);
+
+        if (resources.length == 0) {
+            log.warn("未找到文档，pattern: {}", pattern);
             return;
         }
 
         int count = 0;
-        try (Stream<Path> paths = Files.walk(basePath)) {
-            List<Path> mdFiles = paths
-                .filter(Files::isRegularFile)
-                .filter(p -> p.toString().endsWith(".md"))
-                .filter(p -> !p.toString().contains("node_modules"))
-                .toList();
+        for (Resource resource : resources) {
+            try (InputStream is = resource.getInputStream()) {
+                String content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                String filename = resource.getFilename();
 
-            for (Path file : mdFiles) {
-                try {
-                    String content = Files.readString(file);
-                    String relativePath = basePath.relativize(file).toString();
+                TextSegment segment = TextSegment.from(content);
+                segment.metadata().put("source", filename != null ? filename : "unknown");
 
-                    // 创建文本段，包含元数据
-                    TextSegment segment = TextSegment.from(content);
-                    segment.metadata().put("source", relativePath);
-
-                    // 向量化并存储
-                    Embedding embedding = embeddingModel.embed(segment).content();
-                    store.add(embedding, segment);
-                    count++;
-                } catch (Exception e) {
-                    log.warn("加载文档失败: {}", file, e);
-                }
+                Embedding embedding = embeddingModel.embed(segment).content();
+                store.add(embedding, segment);
+                count++;
+                log.debug("已加载文档: {}", filename);
+            } catch (Exception e) {
+                log.warn("加载文档失败: {}", resource.getFilename(), e);
             }
         }
         log.info("知识库初始化完成，共加载 {} 个文档", count);
