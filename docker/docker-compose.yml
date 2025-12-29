@@ -1,12 +1,56 @@
 services:
+  # 后端服务
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../vibe-drive-backend/src/main/resources/application.yml:/app/config/application.yml:ro
+    environment:
+      - SPRING_CONFIG_LOCATION=/app/config/
+    depends_on:
+      - music-api
+    dns:
+      - 8.8.8.8
+      - 114.114.114.114
+    restart: unless-stopped
+
+  # 前端服务
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - tts
+    restart: unless-stopped
+
+  # TTS 服务
+  tts:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.tts
+    ports:
+      - "3002:3002"
+    restart: unless-stopped
+
+  # 音乐 API 服务
   music-api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.music
     ports:
       - "8081:8081"
+    dns:
+      - 8.8.8.8
+      - 114.114.114.114
     restart: unless-stopped
 
+  # Whisper 语音识别 (可选，需要 GPU)
   whisper:
     image: onerahmet/openai-whisper-asr-webservice:latest-gpu
     ports:
@@ -25,6 +69,8 @@ services:
               count: 1
               capabilities: [gpu]
     restart: unless-stopped
+    profiles:
+      - gpu
 
 volumes:
   whisper-cache:
