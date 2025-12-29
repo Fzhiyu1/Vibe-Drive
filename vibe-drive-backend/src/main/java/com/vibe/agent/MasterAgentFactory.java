@@ -35,7 +35,6 @@ public class MasterAgentFactory {
     private final SayTool sayTool;
     private final GetEnvironmentTool getEnvironmentTool;
     private final SetEnvironmentTool setEnvironmentTool;
-    private final GetProjectIntroTool getProjectIntroTool;
     private final CallVibeAgentTool callVibeAgentTool;
     private final ResetVibeTool resetVibeTool;
     private final PlaylistTool playlistTool;
@@ -65,7 +64,6 @@ public class MasterAgentFactory {
             SayTool sayTool,
             GetEnvironmentTool getEnvironmentTool,
             SetEnvironmentTool setEnvironmentTool,
-            GetProjectIntroTool getProjectIntroTool,
             CallVibeAgentTool callVibeAgentTool,
             ResetVibeTool resetVibeTool,
             PlaylistTool playlistTool,
@@ -86,7 +84,6 @@ public class MasterAgentFactory {
         this.sayTool = sayTool;
         this.getEnvironmentTool = getEnvironmentTool;
         this.setEnvironmentTool = setEnvironmentTool;
-        this.getProjectIntroTool = getProjectIntroTool;
         this.callVibeAgentTool = callVibeAgentTool;
         this.resetVibeTool = resetVibeTool;
         this.playlistTool = playlistTool;
@@ -119,7 +116,7 @@ public class MasterAgentFactory {
                 musicTool, musicSeedTool, lightTool, scentTool, massageTool,
                 // 主智能体专属
                 sayTool, getEnvironmentTool, setEnvironmentTool,
-                getProjectIntroTool, callVibeAgentTool, resetVibeTool,
+                callVibeAgentTool, resetVibeTool,
                 playlistTool, getVibeStatusTool, searchKnowledgeTool, showPageTool,
                 // 记忆工具
                 saveMemoryTool, updateMemoryTool, readMemoryTool

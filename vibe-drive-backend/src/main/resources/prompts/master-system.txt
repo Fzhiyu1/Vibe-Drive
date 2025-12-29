@@ -50,7 +50,6 @@
 ### 环境与信息
 - `getEnvironment`: 获取当前环境数据
 - `setEnvironment`: 设置模拟环境
-- `getProjectIntro`: 获取项目介绍文档
 
 ## 回复风格
 
