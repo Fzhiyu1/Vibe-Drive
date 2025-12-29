@@ -1,0 +1,45 @@
+# 稳定服务 Docker Compose (tts + music-api + whisper)
+# 这些服务基本不变，只需部署一次
+services:
+  tts:
+    image: node:20-slim
+    working_dir: /app
+    command: node src/index.js
+    ports:
+      - "3002:3002"
+    volumes:
+      - ../tts:/app:ro
+    restart: unless-stopped
+
+  music-api:
+    image: alpine:latest
+    working_dir: /app
+    command: ./music-api-linux
+    ports:
+      - "8081:8081"
+    volumes:
+      - ../music-api/music-api-linux:/app/music-api-linux:ro
+    dns:
+      - 8.8.8.8
+      - 114.114.114.114
+    restart: unless-stopped
+
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest-gpu
+    ports:
+      - "9000:9000"
+    environment:
+      - ASR_MODEL=medium
+      - ASR_ENGINE=faster_whisper
+      - HF_ENDPOINT=https://hf-mirror.com
+    dns:
+      - 8.8.8.8
+      - 114.114.114.114
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped

@@ -6,7 +6,7 @@ import { config } from './config.js'
 const app = express()
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: true,  // 允许所有来源
   credentials: true
 }))
 
