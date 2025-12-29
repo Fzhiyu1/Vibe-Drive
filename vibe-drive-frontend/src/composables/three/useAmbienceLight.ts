@@ -57,7 +57,7 @@ export function useAmbienceLight(
   const stripMat = new THREE.ShaderMaterial({
     vertexShader,
     fragmentShader,
-    uniforms,
+    uniforms: uniforms as unknown as { [uniform: string]: THREE.IUniform },
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false

@@ -246,9 +246,10 @@ export interface ThinkingStep {
     | 'agent_call'    // 调用子智能体
     | 'complete'      // 完成
     | 'error'         // 错误
+    | 'env_change'    // 环境变化检测
   timestamp: number
   content: string
-  agent?: 'master' | 'vibe'  // 区分智能体
+  agent?: 'master' | 'vibe' | 'detector'  // 区分智能体
   toolName?: string
   toolInput?: unknown
   toolOutput?: string

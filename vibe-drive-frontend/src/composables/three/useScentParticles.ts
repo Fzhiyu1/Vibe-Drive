@@ -200,6 +200,7 @@ export function useScentParticles(scene: THREE.Scene): UseScentParticlesReturn {
     // 更新 Buff Sprites（和粒子相同的运动逻辑）
     for (let i = buffSprites.length - 1; i >= 0; i--) {
       const data = buffSprites[i]
+      if (!data) continue
       data.life += delta
 
       // 更新位置（和粒子一致）

@@ -27,6 +27,7 @@
     "@iconify-json/carbon": "^1.2.15",
     "@tsconfig/node24": "^24.0.3",
     "@types/node": "^24.10.1",
+    "@types/three": "^0.182.0",
     "@unocss/preset-icons": "^66.5.10",
     "@vitejs/plugin-vue": "^6.0.2",
     "@vue/eslint-config-prettier": "^10.2.0",
