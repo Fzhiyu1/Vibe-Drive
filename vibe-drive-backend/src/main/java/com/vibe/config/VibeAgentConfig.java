@@ -139,4 +139,20 @@ public class VibeAgentConfig {
                     .build();
         }
     }
+
+    /**
+     * 总结专用模型（使用 DeepSeek，更稳定经济）
+     */
+    @Bean("summarizerModel")
+    public ChatModel summarizerModel() {
+        log.info("初始化总结模型: {} (DeepSeek)", openaiModelName);
+        return OpenAiChatModel.builder()
+                .apiKey(openaiApiKey)
+                .baseUrl(openaiBaseUrl)
+                .modelName(openaiModelName)
+                .temperature(0.3)  // 总结任务用较低温度
+                .logRequests(true)
+                .logResponses(true)
+                .build();
+    }
 }

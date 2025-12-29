@@ -9,6 +9,7 @@ export interface VibeEventHandlers {
   onError?: (taskId: string, error: string) => void
   onCancelled?: (taskId: string) => void
   onEnvironmentUpdate?: (gpsTag: string, weather: string, speed: number) => void
+  onMemoryUpdated?: (sessionId: string, content: string) => void
 }
 
 /**
@@ -99,6 +100,17 @@ export function useVibeEvents() {
         handlers.onEnvironmentUpdate?.(data.gpsTag, data.weather, data.speed)
       } catch (e) {
         console.warn('[useVibeEvents] 解析 environment_update 失败:', e)
+      }
+    })
+
+    // 监听记忆更新事件
+    eventSource.addEventListener('memory_updated', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        console.log('[useVibeEvents] 收到记忆更新:', data.sessionId)
+        handlers.onMemoryUpdated?.(data.sessionId, data.content)
+      } catch (e) {
+        console.warn('[useVibeEvents] 解析 memory_updated 失败:', e)
       }
     })
   }

@@ -12,14 +12,27 @@ import { vibeApi, masterApi } from '@/services/api'
 import { useAnalyzeStream } from '@/composables/useSSE'
 import { useVibeEvents } from '@/composables/useVibeEvents'
 import { useTTS } from '@/composables/useTTS'
+import { useMemoryStore } from './memoryStore'
+
+const SESSION_ID_KEY = 'vibe-drive-session-id'
 
 function generateSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
+function getOrCreateSessionId(): string {
+  const stored = localStorage.getItem(SESSION_ID_KEY)
+  if (stored) {
+    return stored
+  }
+  const newId = generateSessionId()
+  localStorage.setItem(SESSION_ID_KEY, newId)
+  return newId
+}
+
 export const useVibeStore = defineStore('vibe', () => {
   // ============ 状态 ============
-  const sessionId = ref<string>(generateSessionId())
+  const sessionId = ref<string>(getOrCreateSessionId())
   const environment = ref<Environment | null>(null)
   const plan = ref<AmbiencePlan | null>(null)
   // 分离运行状态：主智能体和Vibe智能体独立
@@ -140,6 +153,11 @@ export const useVibeStore = defineStore('vibe', () => {
             routeType: 'URBAN'
           } as any
         }
+      },
+      onMemoryUpdated: (sid, content) => {
+        console.log('[vibeStore] 收到记忆更新:', sid)
+        // 更新前端记忆
+        memoryStore.memory = content
       }
     })
   }
@@ -147,10 +165,16 @@ export const useVibeStore = defineStore('vibe', () => {
   // 初始连接
   connectVibeEvents()
 
+  // 初始化记忆同步
+  const memoryStore = useMemoryStore()
+  memoryStore.syncToBackend(sessionId.value)
+
   // sessionId 变化时重新连接
   watch(sessionId, () => {
     vibeEvents.disconnect()
     connectVibeEvents()
+    // 重新同步记忆
+    memoryStore.syncToBackend(sessionId.value)
   })
 
   // ============ 计算属性 ============
@@ -492,7 +516,9 @@ export const useVibeStore = defineStore('vibe', () => {
   }
 
   function resetSession() {
-    sessionId.value = generateSessionId()
+    const newId = generateSessionId()
+    localStorage.setItem(SESSION_ID_KEY, newId)
+    sessionId.value = newId
     environment.value = null
     plan.value = null
     masterChain.value = []
@@ -581,6 +607,10 @@ export const useVibeStore = defineStore('vibe', () => {
           // 应用工具结果（跳过非 JSON 工具）
           if (toolName !== 'getProjectIntro' && toolName !== 'getEnvironment' && toolName !== 'setEnvironment') {
             applyToolResult(toolName, result)
+          }
+          // 记忆工具：同步后端记忆到前端
+          if (toolName === 'saveMemory' || toolName === 'updateMemory') {
+            memoryStore.fetchFromBackend(sessionId.value)
           }
         }
       },

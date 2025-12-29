@@ -1,5 +1,6 @@
 package com.vibe.agent;
 
+import com.vibe.memory.MemoryStore;
 import com.vibe.tool.*;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -42,6 +43,12 @@ public class MasterAgentFactory {
     private final SearchKnowledgeTool searchKnowledgeTool;
     private final ShowPageTool showPageTool;
 
+    // 记忆工具
+    private final MemoryStore userMemoryStore;
+    private final SaveMemoryTool saveMemoryTool;
+    private final UpdateMemoryTool updateMemoryTool;
+    private final ReadMemoryTool readMemoryTool;
+
     @Value("${vibe.master.max-messages:30}")
     private int maxMessages;
 
@@ -64,7 +71,11 @@ public class MasterAgentFactory {
             PlaylistTool playlistTool,
             GetVibeStatusTool getVibeStatusTool,
             SearchKnowledgeTool searchKnowledgeTool,
-            ShowPageTool showPageTool) {
+            ShowPageTool showPageTool,
+            MemoryStore userMemoryStore,
+            SaveMemoryTool saveMemoryTool,
+            UpdateMemoryTool updateMemoryTool,
+            ReadMemoryTool readMemoryTool) {
         this.streamingModel = streamingModel;
         this.memoryStore = memoryStore;
         this.musicTool = musicTool;
@@ -82,6 +93,10 @@ public class MasterAgentFactory {
         this.getVibeStatusTool = getVibeStatusTool;
         this.searchKnowledgeTool = searchKnowledgeTool;
         this.showPageTool = showPageTool;
+        this.userMemoryStore = userMemoryStore;
+        this.saveMemoryTool = saveMemoryTool;
+        this.updateMemoryTool = updateMemoryTool;
+        this.readMemoryTool = readMemoryTool;
     }
 
     /**
@@ -98,14 +113,16 @@ public class MasterAgentFactory {
         return AiServices.builder(MasterAgent.class)
             .streamingChatModel(streamingModel)
             .chatMemoryProvider(memoryProvider)
-            .systemMessageProvider(id -> loadSystemPrompt())
+            .systemMessageProvider(id -> loadSystemPromptWithMemory(id))
             .tools(
                 // 继承自氛围智能体
                 musicTool, musicSeedTool, lightTool, scentTool, massageTool,
                 // 主智能体专属
                 sayTool, getEnvironmentTool, setEnvironmentTool,
                 getProjectIntroTool, callVibeAgentTool, resetVibeTool,
-                playlistTool, getVibeStatusTool, searchKnowledgeTool, showPageTool
+                playlistTool, getVibeStatusTool, searchKnowledgeTool, showPageTool,
+                // 记忆工具
+                saveMemoryTool, updateMemoryTool, readMemoryTool
             )
             .build();
     }
@@ -117,5 +134,11 @@ public class MasterAgentFactory {
         } catch (IOException e) {
             throw new RuntimeException("无法加载主智能体 System Prompt: " + SYSTEM_PROMPT_PATH, e);
         }
+    }
+
+    private String loadSystemPromptWithMemory(Object sessionId) {
+        String basePrompt = loadSystemPrompt();
+        String memory = userMemoryStore.getMemory(sessionId.toString());
+        return basePrompt + "\n\n## 用户记忆\n\n" + memory;
     }
 }
