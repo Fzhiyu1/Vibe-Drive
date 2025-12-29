@@ -5,6 +5,7 @@ import { useVibeStore } from '@/stores/vibeStore'
 const store = useVibeStore()
 const logContainer = ref<HTMLElement | null>(null)
 const inputText = ref('')
+const expandedItems = ref<Set<string>>(new Set())
 
 function toggleExpand() {
   store.chainExpanded = !store.chainExpanded
@@ -30,17 +31,41 @@ function formatTime(timestamp: number) {
   })
 }
 
-function formatJson(obj: unknown): string {
+function formatJson(obj: unknown, expanded = false): string {
   if (!obj) return ''
   try {
     if (typeof obj === 'string') {
+      if (expanded) return obj
       return obj.length > 200 ? obj.slice(0, 200) + '...' : obj
     }
     const str = JSON.stringify(obj, null, 2)
+    if (expanded) return str
     return str.length > 300 ? str.slice(0, 300) + '...' : str
   } catch {
     return String(obj)
   }
+}
+
+function isContentTruncated(obj: unknown): boolean {
+  if (!obj) return false
+  try {
+    if (typeof obj === 'string') return obj.length > 200
+    return JSON.stringify(obj, null, 2).length > 300
+  } catch {
+    return false
+  }
+}
+
+function toggleItemExpand(key: string) {
+  if (expandedItems.value.has(key)) {
+    expandedItems.value.delete(key)
+  } else {
+    expandedItems.value.add(key)
+  }
+}
+
+function isItemExpanded(key: string): boolean {
+  return expandedItems.value.has(key)
 }
 
 function getAgentLabel(agent?: string) {
@@ -124,9 +149,19 @@ watch(() => store.thinkingChain, async () => {
             <span class="prefix">[{{ step.agent === 'vibe' ? 'VIBE' : 'TOOL' }}]</span>
             <span class="label">调用 <span class="tool-name">{{ step.toolName }}</span></span>
           </div>
-          <div v-if="step.toolInput" class="log-content code">
-            <span class="input-label">输入:</span>
-            <pre>{{ formatJson(step.toolInput) }}</pre>
+          <div
+            v-if="step.toolInput"
+            class="log-content code"
+            :class="{ expandable: isContentTruncated(step.toolInput), expanded: isItemExpanded(`input-${index}`) }"
+            @click="isContentTruncated(step.toolInput) && toggleItemExpand(`input-${index}`)"
+          >
+            <span class="input-label">
+              输入:
+              <span v-if="isContentTruncated(step.toolInput)" class="expand-hint">
+                {{ isItemExpanded(`input-${index}`) ? '点击收起 ▲' : '点击展开 ▼' }}
+              </span>
+            </span>
+            <pre>{{ formatJson(step.toolInput, isItemExpanded(`input-${index}`)) }}</pre>
           </div>
         </div>
 
@@ -137,9 +172,19 @@ watch(() => store.thinkingChain, async () => {
             <span class="prefix">[{{ step.agent === 'vibe' ? 'VIBE' : 'DONE' }}]</span>
             <span class="label"><span class="tool-name">{{ step.toolName }}</span> 完成</span>
           </div>
-          <div v-if="step.toolOutput" class="log-content code">
-            <span class="output-label">输出:</span>
-            <pre>{{ formatJson(step.toolOutput) }}</pre>
+          <div
+            v-if="step.toolOutput"
+            class="log-content code"
+            :class="{ expandable: isContentTruncated(step.toolOutput), expanded: isItemExpanded(`output-${index}`) }"
+            @click="isContentTruncated(step.toolOutput) && toggleItemExpand(`output-${index}`)"
+          >
+            <span class="output-label">
+              输出:
+              <span v-if="isContentTruncated(step.toolOutput)" class="expand-hint">
+                {{ isItemExpanded(`output-${index}`) ? '点击收起 ▲' : '点击展开 ▼' }}
+              </span>
+            </span>
+            <pre>{{ formatJson(step.toolOutput, isItemExpanded(`output-${index}`)) }}</pre>
           </div>
         </div>
 
@@ -324,8 +369,28 @@ watch(() => store.thinkingChain, async () => {
 .input-label, .output-label {
   color: #808080;
   font-size: 0.7rem;
-  display: block;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 0.25rem;
+}
+
+.expand-hint {
+  color: #569cd6;
+  font-size: 0.65rem;
+  cursor: pointer;
+}
+
+.log-content.expandable {
+  cursor: pointer;
+}
+
+.log-content.expandable:hover {
+  background: #2a2a2a;
+}
+
+.log-content.expanded pre {
+  max-height: none;
 }
 
 .cursor {
