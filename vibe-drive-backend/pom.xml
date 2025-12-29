@@ -53,6 +53,12 @@
             <artifactId>langchain4j-anthropic</artifactId>
             <version>${langchain4j.version}</version>
         </dependency>
+        <!-- Local Embedding Model for RAG (Quantized) -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-embeddings-all-minilm-l6-v2-q</artifactId>
+            <version>1.9.1-beta17</version>
+        </dependency>
 
         <!-- Lombok -->
         <dependency>
