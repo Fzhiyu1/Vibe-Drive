@@ -5,8 +5,10 @@ import com.vibe.model.AmbiencePlan;
 import com.vibe.model.Environment;
 import com.vibe.model.enums.SafetyMode;
 import com.vibe.orchestration.callback.VibeStreamCallback;
+import com.vibe.orchestration.dto.ToolExecution;
 import com.vibe.orchestration.dto.VibeDialogRequest;
 import com.vibe.orchestration.dto.VibeMessage;
+import com.vibe.orchestration.dto.VibeTaskStatus;
 import com.vibe.orchestration.service.VibeDialogService;
 import com.vibe.service.PlaylistService;
 import com.vibe.sse.SseEventPublisher;
@@ -39,6 +41,9 @@ public class VibeTaskManager {
 
     // 完成/失败消息队列（按 sessionId 隔离）
     private final Map<String, Queue<VibeMessage>> messageQueues = new ConcurrentHashMap<>();
+
+    // 工具执行历史（按 sessionId 隔离）
+    private final Map<String, List<ToolExecution>> taskToolHistory = new ConcurrentHashMap<>();
 
     public VibeTaskManager(
             VibeDialogService vibeDialogService,
@@ -93,6 +98,8 @@ public class VibeTaskManager {
         VibeTask task = new VibeTask(taskId, sessionId, future, cancellationToken, Instant.now());
 
         currentTasks.put(sessionId, task);
+        // 清空工具执行历史
+        taskToolHistory.put(sessionId, Collections.synchronizedList(new ArrayList<>()));
         log.info("启动氛围任务: taskId={}, sessionId={}, isAdjustment={}",
                 taskId, sessionId, changeDescription != null);
 
@@ -174,6 +181,8 @@ public class VibeTaskManager {
                 public void onToolStart(String toolName, Object toolInput) {
                     // 取消检查
                     if (cancellationToken.isCancelled()) return;
+                    // 记录工具开始
+                    recordToolStart(sessionId, toolName);
                     publishEvent(sessionId, "vibe_tool_start", Map.of(
                         "taskId", taskId,
                         "toolName", toolName,
@@ -188,6 +197,8 @@ public class VibeTaskManager {
                         log.info("任务已取消，跳过工具完成事件: taskId={}, toolName={}", taskId, toolName);
                         return;
                     }
+                    // 记录工具完成
+                    recordToolComplete(sessionId, toolName, true);
                     publishEvent(sessionId, "vibe_tool_end", Map.of(
                         "taskId", taskId,
                         "toolName", toolName,
@@ -197,6 +208,8 @@ public class VibeTaskManager {
 
                 @Override
                 public void onToolError(String toolName, Throwable error) {
+                    // 记录工具失败
+                    recordToolComplete(sessionId, toolName, false);
                     publishEvent(sessionId, "vibe_tool_error", Map.of(
                         "taskId", taskId,
                         "toolName", toolName,
@@ -319,6 +332,61 @@ public class VibeTaskManager {
         } catch (Exception e) {
             return String.valueOf(value);
         }
+    }
+
+    /**
+     * 记录工具开始执行
+     */
+    private void recordToolStart(String sessionId, String toolName) {
+        List<ToolExecution> history = taskToolHistory.get(sessionId);
+        if (history != null) {
+            history.add(ToolExecution.started(toolName));
+        }
+    }
+
+    /**
+     * 记录工具执行完成
+     */
+    private void recordToolComplete(String sessionId, String toolName, boolean success) {
+        List<ToolExecution> history = taskToolHistory.get(sessionId);
+        if (history != null) {
+            // 找到最后一个匹配的正在执行的工具
+            for (int i = history.size() - 1; i >= 0; i--) {
+                ToolExecution exec = history.get(i);
+                if (exec.toolName().equals(toolName) && exec.isRunning()) {
+                    history.set(i, exec.completed(success));
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * 获取任务状态（供主智能体查询）
+     */
+    public VibeTaskStatus getTaskStatus(String sessionId) {
+        VibeTask task = currentTasks.get(sessionId);
+        List<ToolExecution> history = taskToolHistory.getOrDefault(sessionId, List.of());
+
+        if (task == null) {
+            // 没有运行中的任务
+            return new VibeTaskStatus(false, null, null, List.copyOf(history), null);
+        }
+
+        // 找到当前正在执行的工具
+        String currentTool = history.stream()
+            .filter(ToolExecution::isRunning)
+            .map(ToolExecution::toolName)
+            .findFirst()
+            .orElse(null);
+
+        return new VibeTaskStatus(
+            true,
+            task.taskId(),
+            task.startTime(),
+            List.copyOf(history),
+            currentTool
+        );
     }
 
     /**

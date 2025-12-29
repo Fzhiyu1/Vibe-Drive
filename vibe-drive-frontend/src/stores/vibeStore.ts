@@ -20,8 +20,12 @@ export const useVibeStore = defineStore('vibe', () => {
   const sessionId = ref<string>(generateSessionId())
   const environment = ref<Environment | null>(null)
   const plan = ref<AmbiencePlan | null>(null)
-  const agentRunning = ref(false)
-  const thinkingChain = ref<ThinkingStep[]>([])
+  // 分离运行状态：主智能体和Vibe智能体独立
+  const masterRunning = ref(false)
+  const vibeRunning = ref(false)
+  // 分离思维链：主智能体和Vibe智能体独立显示
+  const masterChain = ref<ThinkingStep[]>([])
+  const vibeChain = ref<ThinkingStep[]>([])
   const error = ref<string | null>(null)
 
   // UI 状态
@@ -64,6 +68,7 @@ export const useVibeStore = defineStore('vibe', () => {
   function connectVibeEvents() {
     vibeEvents.connect(sessionId.value, {
       onToolStart: (taskId, toolName, input) => {
+        vibeRunning.value = true
         addThinkingStep({
           type: 'tool_start',
           content: `调用 ${toolName}`,
@@ -84,6 +89,7 @@ export const useVibeStore = defineStore('vibe', () => {
         applyToolResult(toolName, result)
       },
       onComplete: (taskId, completedPlan) => {
+        vibeRunning.value = false
         addThinkingStep({
           type: 'complete',
           content: '氛围编排完成',
@@ -91,6 +97,7 @@ export const useVibeStore = defineStore('vibe', () => {
         })
       },
       onError: (taskId, errorMsg) => {
+        vibeRunning.value = false
         addThinkingStep({
           type: 'error',
           content: errorMsg,
@@ -98,6 +105,7 @@ export const useVibeStore = defineStore('vibe', () => {
         })
       },
       onCancelled: (taskId) => {
+        vibeRunning.value = false
         addThinkingStep({
           type: 'error',
           content: '氛围编排已取消',
@@ -166,14 +174,21 @@ export const useVibeStore = defineStore('vibe', () => {
   }
 
   function clearThinkingChain() {
-    thinkingChain.value = []
+    masterChain.value = []
+    vibeChain.value = []
   }
 
   function addThinkingStep(step: Omit<ThinkingStep, 'timestamp'>) {
-    thinkingChain.value.push({
+    const newStep = {
       ...step,
       timestamp: Date.now(),
-    })
+    }
+    // 根据 agent 分发到不同的思维链
+    if (step.agent === 'vibe') {
+      vibeChain.value.push(newStep)
+    } else {
+      masterChain.value.push(newStep)
+    }
   }
 
   // 立即应用工具结果
@@ -324,7 +339,7 @@ export const useVibeStore = defineStore('vibe', () => {
     }
 
     error.value = null
-    agentRunning.value = true
+    vibeRunning.value = true
     clearThinkingChain()
 
     const stream = useAnalyzeStream()
@@ -332,11 +347,11 @@ export const useVibeStore = defineStore('vibe', () => {
     await stream.connect(sessionId.value, environment.value, {
       onToken: (text) => {
         // 打字机效果：累积到最后一个 thinking 步骤
-        const lastStep = thinkingChain.value[thinkingChain.value.length - 1]
+        const lastStep = vibeChain.value[vibeChain.value.length - 1]
         if (lastStep && lastStep.type === 'thinking') {
           lastStep.content += text
         } else {
-          addThinkingStep({ type: 'thinking', content: text })
+          addThinkingStep({ type: 'thinking', content: text, agent: 'vibe' })
         }
       },
       onToolStart: (toolName, input) => {
@@ -374,12 +389,12 @@ export const useVibeStore = defineStore('vibe', () => {
           addThinkingStep({ type: 'complete', content: '分析完成' })
         }
 
-        agentRunning.value = false
+        vibeRunning.value = false
       },
       onError: (code, message) => {
         error.value = `${code}: ${message}`
         addThinkingStep({ type: 'error', content: message })
-        agentRunning.value = false
+        vibeRunning.value = false
       },
     }, { debug: true })
   }
@@ -391,7 +406,7 @@ export const useVibeStore = defineStore('vibe', () => {
     }
 
     error.value = null
-    agentRunning.value = true
+    vibeRunning.value = true
 
     try {
       const response = await vibeApi.analyze({
@@ -409,7 +424,7 @@ export const useVibeStore = defineStore('vibe', () => {
     } catch (e) {
       error.value = (e as Error).message
     } finally {
-      agentRunning.value = false
+      vibeRunning.value = false
     }
   }
 
@@ -422,15 +437,16 @@ export const useVibeStore = defineStore('vibe', () => {
     sessionId.value = generateSessionId()
     environment.value = null
     plan.value = null
-    thinkingChain.value = []
+    masterChain.value = []
+    vibeChain.value = []
     error.value = null
   }
 
   // 发送用户消息（集成到思维链）
   async function sendMessage(text: string) {
-    if (!text.trim() || agentRunning.value) return
+    if (!text.trim() || masterRunning.value) return
 
-    agentRunning.value = true
+    masterRunning.value = true
 
     // 添加用户输入步骤
     addThinkingStep({
@@ -502,11 +518,11 @@ export const useVibeStore = defineStore('vibe', () => {
       },
       onComplete: () => {
         addThinkingStep({ type: 'complete', content: '完成', agent: 'master' })
-        agentRunning.value = false
+        masterRunning.value = false
       },
       onError: (code, message) => {
         addThinkingStep({ type: 'error', content: message, agent: 'master' })
-        agentRunning.value = false
+        masterRunning.value = false
       }
     })
   }
@@ -585,8 +601,10 @@ export const useVibeStore = defineStore('vibe', () => {
     sessionId,
     environment,
     plan,
-    agentRunning,
-    thinkingChain,
+    masterRunning,
+    vibeRunning,
+    masterChain,
+    vibeChain,
     error,
     theme,
     demoMode,
