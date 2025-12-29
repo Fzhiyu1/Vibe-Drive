@@ -103,7 +103,7 @@ onMounted(async () => {
 
 function loadRoute() {
   drawRoute(presetRoute)
-  currentRoad.value = presetRoute[0].road
+  currentRoad.value = presetRoute[0]?.road ?? ''
   isRouteLoaded.value = true
 }
 
@@ -173,16 +173,14 @@ function togglePlay() {
 
 function updateEnvironment(stepIndex: number, step: RouteStep) {
   const roadName = step.road
-  let gpsTag: 'CITY_ROAD' | 'HIGHWAY' | 'CITY_EXPRESSWAY' = 'CITY_ROAD'
+  let gpsTag: 'URBAN' | 'HIGHWAY' = 'URBAN'
   let cityName = store.environment?.location?.cityName || '上海'
 
-  if (roadName.includes('高速')) {
+  if (roadName.includes('高速') || roadName.includes('高架')) {
     gpsTag = 'HIGHWAY'
     if (roadName.includes('杭州')) {
       cityName = '杭州'
     }
-  } else if (roadName.includes('高架')) {
-    gpsTag = 'CITY_EXPRESSWAY'
   }
 
   const pos = lastPosition.value || [121.473701, 31.230416]
@@ -209,7 +207,8 @@ function updateEnvironment(stepIndex: number, step: RouteStep) {
   const biometrics = {
     heartRate: Math.round(Math.max(60, Math.min(100, baseHR + hrDelta))),
     stressLevel: Math.max(0, Math.min(1, baseStress + stressDelta)),
-    fatigueLevel: Math.max(0, Math.min(1, baseFatigue + fatigueDelta))
+    fatigueLevel: Math.max(0, Math.min(1, baseFatigue + fatigueDelta)),
+    bodyTemperature: 36.5
   }
 
   store.setEnvironment({

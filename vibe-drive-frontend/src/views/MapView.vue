@@ -73,7 +73,7 @@ onMounted(async () => {
 
 function loadRoute() {
   drawRoute(presetRoute)
-  currentRoad.value = presetRoute[0].road
+  currentRoad.value = presetRoute[0]?.road ?? ''
   isRouteLoaded.value = true
 }
 
@@ -98,11 +98,9 @@ function updateEnvironment(step: RouteStep) {
   const roadName = step.road
 
   // 简单的路段 → GPS标签映射
-  let gpsTag: 'CITY_ROAD' | 'HIGHWAY' | 'CITY_EXPRESSWAY' = 'CITY_ROAD'
-  if (roadName.includes('高速')) {
+  let gpsTag: 'URBAN' | 'HIGHWAY' = 'URBAN'
+  if (roadName.includes('高速') || roadName.includes('高架')) {
     gpsTag = 'HIGHWAY'
-  } else if (roadName.includes('高架')) {
-    gpsTag = 'CITY_EXPRESSWAY'
   }
 
   // 获取当前坐标

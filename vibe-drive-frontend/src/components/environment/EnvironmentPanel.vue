@@ -48,7 +48,7 @@ async function startDrivingSimulation() {
 
   // 设置上海→杭州的初始环境
   store.setEnvironment({
-    gpsTag: 'CITY_ROAD',
+    gpsTag: 'URBAN',
     weather: 'SUNNY',
     speed: 60,
     userMood: 'CALM',
@@ -64,7 +64,8 @@ async function startDrivingSimulation() {
     biometrics: {
       heartRate: 72,
       stressLevel: 0.3,
-      fatigueLevel: 0.2
+      fatigueLevel: 0.2,
+      bodyTemperature: 36.5
     }
   })
 

@@ -142,7 +142,7 @@ function playSongAt(index: number) {
         @click="playSongAt(index)"
       >
         <span class="index">{{ index + 1 }}</span>
-        <span class="name">{{ song.name || song.title }}</span>
+        <span class="name">{{ (song as any).name || (song as any).title }}</span>
         <span class="artist">{{ song.artist }}</span>
         <span v-if="index === currentIndex" class="playing-indicator">♪</span>
       </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { vibeApi } from '@/services/api'
-import type { ScenarioType } from '@/types/api'
+import type { ScenarioType, Environment } from '@/types/api'
 
 const props = defineProps<{
   visible: boolean
@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  select: [env: unknown]
+  select: [env: Environment]
 }>()
 
 const description = ref('')

@@ -8,6 +8,7 @@ export interface VibeEventHandlers {
   onComplete?: (taskId: string, plan: unknown) => void
   onError?: (taskId: string, error: string) => void
   onCancelled?: (taskId: string) => void
+  onEnvironmentUpdate?: (gpsTag: string, weather: string, speed: number) => void
 }
 
 /**
@@ -89,6 +90,16 @@ export function useVibeEvents() {
     // 心跳事件（保持连接）
     eventSource.addEventListener('heartbeat', () => {
       // 忽略心跳
+    })
+
+    // 监听环境更新事件
+    eventSource.addEventListener('environment_update', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        handlers.onEnvironmentUpdate?.(data.gpsTag, data.weather, data.speed)
+      } catch (e) {
+        console.warn('[useVibeEvents] 解析 environment_update 失败:', e)
+      }
     })
   }
 

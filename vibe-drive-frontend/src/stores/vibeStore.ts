@@ -103,6 +103,28 @@ export const useVibeStore = defineStore('vibe', () => {
           content: '氛围编排已取消',
           agent: 'vibe'
         })
+      },
+      onEnvironmentUpdate: (gpsTag, weather, speed) => {
+        console.log('[vibeStore] 收到环境更新:', { gpsTag, weather, speed })
+        // 更新环境状态
+        if (environment.value) {
+          environment.value = {
+            ...environment.value,
+            gpsTag: gpsTag as any,
+            weather: weather as any,
+            speed
+          }
+        } else {
+          environment.value = {
+            gpsTag: gpsTag as any,
+            weather: weather as any,
+            speed,
+            userMood: 'CALM',
+            timeOfDay: 'AFTERNOON',
+            passengerCount: 1,
+            routeType: 'URBAN'
+          } as any
+        }
       }
     })
   }
@@ -180,8 +202,8 @@ export const useVibeStore = defineStore('vibe', () => {
         case 'batchPlayMusic':
           plan.value = { ...plan.value, playlist: result }
           currentPlaylistIndex.value = 0
-          // 只在当前没有播放时才自动播放第一首
-          if (!isPlaying.value && result.songs?.length > 0 && result.songs[0].url) {
+          // 自动播放新歌单第一首
+          if (result.songs?.length > 0 && result.songs[0].url) {
             playMusic(result.songs[0].url)
           }
           console.log('[vibeStore] 立即应用歌单:', result)
@@ -433,8 +455,8 @@ export const useVibeStore = defineStore('vibe', () => {
         }
 
         // say 工具：立即触发 TTS，不等 tool_end
-        if (toolName === 'say' && parsedInput?.text) {
-          speakTTS(parsedInput.text, { volume: 0.8 })
+        if (toolName === 'say' && (parsedInput as { text?: string })?.text) {
+          speakTTS((parsedInput as { text: string }).text, { volume: 0.8 })
         }
 
         if (toolName === 'callVibeAgent') {
