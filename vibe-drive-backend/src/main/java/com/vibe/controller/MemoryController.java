@@ -2,6 +2,7 @@ package com.vibe.controller;
 
 import com.vibe.memory.MemoryStore;
 import com.vibe.memory.MemorySummarizer;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
@@ -17,10 +18,12 @@ public class MemoryController {
 
     private final MemoryStore memoryStore;
     private final MemorySummarizer summarizer;
+    private final ChatMemoryStore chatMemoryStore;
 
-    public MemoryController(MemoryStore memoryStore, MemorySummarizer summarizer) {
+    public MemoryController(MemoryStore memoryStore, MemorySummarizer summarizer, ChatMemoryStore chatMemoryStore) {
         this.memoryStore = memoryStore;
         this.summarizer = summarizer;
+        this.chatMemoryStore = chatMemoryStore;
     }
 
     /**
@@ -52,6 +55,16 @@ public class MemoryController {
     @GetMapping
     public MemoryResponse getMemory(@RequestParam String sessionId) {
         return new MemoryResponse(memoryStore.getMemory(sessionId));
+    }
+
+    /**
+     * 清除聊天记忆（修复损坏的对话历史）
+     */
+    @DeleteMapping("/chat")
+    public SyncResponse clearChatMemory(@RequestParam String sessionId) {
+        log.info("[MemoryController] 清除聊天记忆: sessionId={}", sessionId);
+        chatMemoryStore.deleteMessages(sessionId);
+        return new SyncResponse(true, "聊天记忆已清除");
     }
 
     public record MemorySyncRequest(String content) {}

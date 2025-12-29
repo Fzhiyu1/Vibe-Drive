@@ -165,8 +165,15 @@ export const useVibeStore = defineStore('vibe', () => {
   // 初始连接
   connectVibeEvents()
 
-  // 初始化记忆同步
+  // 初始化：清除聊天记忆（避免损坏的对话历史）+ 同步用户记忆
   const memoryStore = useMemoryStore()
+
+  // 清除聊天记忆（对话历史）
+  fetch(`/api/memory/chat?sessionId=${sessionId.value}`, { method: 'DELETE' })
+    .then(() => console.log('[vibeStore] 聊天记忆已清除'))
+    .catch(e => console.warn('[vibeStore] 清除聊天记忆失败:', e))
+
+  // 同步用户记忆（偏好）
   memoryStore.syncToBackend(sessionId.value)
 
   // sessionId 变化时重新连接
