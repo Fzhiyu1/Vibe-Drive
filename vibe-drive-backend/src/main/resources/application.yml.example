@@ -47,6 +47,11 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
+# Music API 配置
+music-api:
+  # 本地开发使用 localhost，Docker 部署使用服务名 music-api
+  url: http://localhost:8081
+
 # OpenAPI Documentation
 springdoc:
   api-docs:

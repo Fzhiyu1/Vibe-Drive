@@ -8,8 +8,10 @@ services:
       - "8080:8080"
     volumes:
       - ../vibe-drive-backend/src/main/resources/application.yml:/app/config/application.yml:ro
+      - ./application-docker.yml:/app/config/application-docker.yml:ro
     environment:
       - SPRING_CONFIG_LOCATION=/app/config/
+      - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       - music-api
     dns:

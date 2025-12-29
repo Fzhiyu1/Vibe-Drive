@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { useVibeStore } from '@/stores/vibeStore'
 import { useEnvironmentDetector } from '@/composables/useEnvironmentDetector'
+import { useWelcome } from '@/composables/useWelcome'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import EnvironmentPanel from '@/components/environment/EnvironmentPanel.vue'
 import ThreeVisualizer from '@/components/ambience/ThreeVisualizer.vue'
@@ -13,10 +14,14 @@ import ThinkingChain from '@/components/agent/ThinkingChain.vue'
 import ScenarioModal from '@/components/environment/ScenarioModal.vue'
 import VoiceInput from '@/components/voice/VoiceInput.vue'
 import MapPanel from '@/components/map/MapPanel.vue'
+import WelcomeModal from '@/components/common/WelcomeModal.vue'
 import type { Environment } from '@/types/api'
 
 const store = useVibeStore()
 const showModal = ref(false)
+
+// 新手引导
+const { showWelcome, acceptWelcome } = useWelcome()
 
 // 环境变化检测器
 const detector = useEnvironmentDetector()
@@ -49,6 +54,11 @@ function handleSelect(env: Environment) {
   store.unlockAudio()
   store.setEnvironment(env)
   store.analyzeStream()
+}
+
+function handleWelcomeAccept() {
+  acceptWelcome()
+  store.unlockAudio()
 }
 </script>
 
@@ -111,6 +121,12 @@ function handleSelect(env: Environment) {
     :visible="showModal"
     @close="showModal = false"
     @select="handleSelect"
+  />
+
+  <!-- 新手引导弹窗 -->
+  <WelcomeModal
+    :visible="showWelcome"
+    @accept="handleWelcomeAccept"
   />
 </template>
 
