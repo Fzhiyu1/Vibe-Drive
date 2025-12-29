@@ -270,3 +270,18 @@ export interface ChatToolCall {
   input: unknown
   output?: string
 }
+
+// ============ 弹窗类型 ============
+
+export type PageWindowType = 'document' | 'code' | 'table'
+
+export interface PageWindowState {
+  id: string
+  title: string
+  content: string
+  type: PageWindowType
+  position: { x: number; y: number }
+  size: { width: number; height: number }
+  zIndex: number
+  minimized: boolean
+}

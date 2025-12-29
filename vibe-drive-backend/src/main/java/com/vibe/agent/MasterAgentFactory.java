@@ -40,6 +40,7 @@ public class MasterAgentFactory {
     private final PlaylistTool playlistTool;
     private final GetVibeStatusTool getVibeStatusTool;
     private final SearchKnowledgeTool searchKnowledgeTool;
+    private final ShowPageTool showPageTool;
 
     @Value("${vibe.master.max-messages:30}")
     private int maxMessages;
@@ -62,7 +63,8 @@ public class MasterAgentFactory {
             ResetVibeTool resetVibeTool,
             PlaylistTool playlistTool,
             GetVibeStatusTool getVibeStatusTool,
-            SearchKnowledgeTool searchKnowledgeTool) {
+            SearchKnowledgeTool searchKnowledgeTool,
+            ShowPageTool showPageTool) {
         this.streamingModel = streamingModel;
         this.memoryStore = memoryStore;
         this.musicTool = musicTool;
@@ -79,6 +81,7 @@ public class MasterAgentFactory {
         this.playlistTool = playlistTool;
         this.getVibeStatusTool = getVibeStatusTool;
         this.searchKnowledgeTool = searchKnowledgeTool;
+        this.showPageTool = showPageTool;
     }
 
     /**
@@ -102,7 +105,7 @@ public class MasterAgentFactory {
                 // 主智能体专属
                 sayTool, getEnvironmentTool, setEnvironmentTool,
                 getProjectIntroTool, callVibeAgentTool, resetVibeTool,
-                playlistTool, getVibeStatusTool, searchKnowledgeTool
+                playlistTool, getVibeStatusTool, searchKnowledgeTool, showPageTool
             )
             .build();
     }

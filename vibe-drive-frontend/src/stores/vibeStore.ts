@@ -5,6 +5,8 @@ import type {
   AmbiencePlan,
   ThinkingStep,
   SafetyMode,
+  PageWindowState,
+  PageWindowType,
 } from '@/types/api'
 import { vibeApi, masterApi } from '@/services/api'
 import { useAnalyzeStream } from '@/composables/useSSE'
@@ -33,6 +35,11 @@ export const useVibeStore = defineStore('vibe', () => {
   const demoMode = ref(false)
   const chainExpanded = ref(false)
   const drivingSimulationActive = ref(false)
+
+  // 弹窗状态
+  const pageWindows = ref<PageWindowState[]>([])
+  let nextWindowId = 1
+  let topZIndex = 1000
 
   // ============ 音频管理 ============
   const audio = new Audio()
@@ -188,6 +195,57 @@ export const useVibeStore = defineStore('vibe', () => {
       vibeChain.value.push(newStep)
     } else {
       masterChain.value.push(newStep)
+    }
+  }
+
+  // ============ 弹窗管理方法 ============
+  function openPageWindow(title: string, content: string, type: PageWindowType = 'document') {
+    const id = `page-${nextWindowId++}`
+    const offset = (pageWindows.value.length % 5) * 30
+    pageWindows.value.push({
+      id,
+      title,
+      content,
+      type,
+      position: { x: 100 + offset, y: 100 + offset },
+      size: { width: 600, height: 400 },
+      zIndex: ++topZIndex,
+      minimized: false
+    })
+  }
+
+  function closePageWindow(id: string) {
+    const index = pageWindows.value.findIndex(w => w.id === id)
+    if (index !== -1) {
+      pageWindows.value.splice(index, 1)
+    }
+  }
+
+  function focusPageWindow(id: string) {
+    const window = pageWindows.value.find(w => w.id === id)
+    if (window) {
+      window.zIndex = ++topZIndex
+    }
+  }
+
+  function updateWindowPosition(id: string, position: { x: number; y: number }) {
+    const window = pageWindows.value.find(w => w.id === id)
+    if (window) {
+      window.position = position
+    }
+  }
+
+  function updateWindowSize(id: string, size: { width: number; height: number }) {
+    const window = pageWindows.value.find(w => w.id === id)
+    if (window) {
+      window.size = size
+    }
+  }
+
+  function toggleWindowMinimize(id: string) {
+    const window = pageWindows.value.find(w => w.id === id)
+    if (window) {
+      window.minimized = !window.minimized
     }
   }
 
@@ -475,6 +533,16 @@ export const useVibeStore = defineStore('vibe', () => {
           speakTTS((parsedInput as { text: string }).text, { volume: 0.8 })
         }
 
+        // showPage 工具：立即弹出窗口
+        if (toolName === 'showPage') {
+          const { title, content, type } = parsedInput as {
+            title: string
+            content: string
+            type: PageWindowType
+          }
+          openPageWindow(title, content, type || 'document')
+        }
+
         if (toolName === 'callVibeAgent') {
           addThinkingStep({
             type: 'agent_call',
@@ -609,6 +677,8 @@ export const useVibeStore = defineStore('vibe', () => {
     theme,
     demoMode,
     chainExpanded,
+    // 弹窗状态
+    pageWindows,
     // 音频状态
     isPlaying,
     audioProgress,
@@ -642,5 +712,12 @@ export const useVibeStore = defineStore('vibe', () => {
     ttsSpeaking,
     speakTTS,
     stopTTS,
+    // 弹窗控制
+    openPageWindow,
+    closePageWindow,
+    focusPageWindow,
+    updateWindowPosition,
+    updateWindowSize,
+    toggleWindowMinimize,
   }
 })

@@ -18,6 +18,7 @@
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
     "@tresjs/core": "^5.2.0",
+    "marked": "^17.0.1",
     "pinia": "^3.0.4",
     "three": "^0.182.0",
     "vue": "^3.5.25",
