@@ -61,7 +61,7 @@ public class KnowledgeStore {
      */
     private void loadDocuments() throws IOException {
         PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        String pattern = "classpath*:" + docsPath + "/**/*.md";
+        String pattern = "classpath*:" + docsPath + "/qa/**/*.md";
 
         log.info("扫描文档: {}", pattern);
         Resource[] resources = resolver.getResources(pattern);
