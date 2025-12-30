@@ -41,6 +41,7 @@ public class MasterAgentFactory {
     private final GetVibeStatusTool getVibeStatusTool;
     private final SearchKnowledgeTool searchKnowledgeTool;
     private final ShowPageTool showPageTool;
+    private final AppendPageTool appendPageTool;
 
     // 记忆工具
     private final MemoryStore userMemoryStore;
@@ -70,6 +71,7 @@ public class MasterAgentFactory {
             GetVibeStatusTool getVibeStatusTool,
             SearchKnowledgeTool searchKnowledgeTool,
             ShowPageTool showPageTool,
+            AppendPageTool appendPageTool,
             MemoryStore userMemoryStore,
             SaveMemoryTool saveMemoryTool,
             UpdateMemoryTool updateMemoryTool,
@@ -90,6 +92,7 @@ public class MasterAgentFactory {
         this.getVibeStatusTool = getVibeStatusTool;
         this.searchKnowledgeTool = searchKnowledgeTool;
         this.showPageTool = showPageTool;
+        this.appendPageTool = appendPageTool;
         this.userMemoryStore = userMemoryStore;
         this.saveMemoryTool = saveMemoryTool;
         this.updateMemoryTool = updateMemoryTool;
@@ -117,7 +120,8 @@ public class MasterAgentFactory {
                 // 主智能体专属
                 sayTool, getEnvironmentTool, setEnvironmentTool,
                 callVibeAgentTool, resetVibeTool,
-                playlistTool, getVibeStatusTool, searchKnowledgeTool, showPageTool,
+                playlistTool, getVibeStatusTool, searchKnowledgeTool,
+                showPageTool, appendPageTool,
                 // 记忆工具
                 saveMemoryTool, updateMemoryTool, readMemoryTool
             )

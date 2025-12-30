@@ -53,6 +53,8 @@ export const useVibeStore = defineStore('vibe', () => {
   const pageWindows = ref<PageWindowState[]>([])
   let nextWindowId = 1
   let topZIndex = 1000
+  // 保存 pending 的 showPage 请求（等待 tool_end 获取 pageId）
+  const pendingShowPage = ref<{ title: string; type: PageWindowType } | null>(null)
 
   // ============ 音频管理 ============
   const audio = new Audio()
@@ -230,19 +232,27 @@ export const useVibeStore = defineStore('vibe', () => {
   }
 
   // ============ 弹窗管理方法 ============
-  function openPageWindow(title: string, content: string, type: PageWindowType = 'document') {
-    const id = `page-${nextWindowId++}`
+  function openPageWindow(title: string, type: PageWindowType = 'document', pageId?: string) {
+    const id = pageId || `page-${nextWindowId++}`
     const offset = (pageWindows.value.length % 5) * 30
     pageWindows.value.push({
       id,
       title,
-      content,
+      content: '',  // 初始为空，后续通过 appendPage 追加
       type,
       position: { x: 100 + offset, y: 100 + offset },
       size: { width: 600, height: 400 },
       zIndex: ++topZIndex,
       minimized: false
     })
+    return id
+  }
+
+  function appendPageContent(pageId: string, content: string) {
+    const window = pageWindows.value.find(w => w.id === pageId)
+    if (window) {
+      window.content += content
+    }
   }
 
   function closePageWindow(id: string) {
@@ -566,14 +576,22 @@ export const useVibeStore = defineStore('vibe', () => {
           speakTTS((parsedInput as { text: string }).text, { volume: 0.8 })
         }
 
-        // showPage 工具：立即弹出窗口
+        // showPage 工具：保存 input，等 tool_end 获取 pageId 后再打开弹窗
         if (toolName === 'showPage') {
-          const { title, content, type } = parsedInput as {
+          const { title, type } = parsedInput as {
             title: string
-            content: string
             type: PageWindowType
           }
-          openPageWindow(title, content, type || 'document')
+          pendingShowPage.value = { title, type: type || 'document' }
+        }
+
+        // appendPage 工具：追加内容到弹窗
+        if (toolName === 'appendPage') {
+          const { pageId, content } = parsedInput as {
+            pageId: string
+            content: string
+          }
+          appendPageContent(pageId, content)
         }
 
         if (toolName === 'callVibeAgent') {
@@ -618,6 +636,12 @@ export const useVibeStore = defineStore('vibe', () => {
           // 记忆工具：同步后端记忆到前端
           if (toolName === 'saveMemory' || toolName === 'updateMemory') {
             memoryStore.fetchFromBackend(sessionId.value)
+          }
+          // showPage 工具：使用返回的 pageId 打开弹窗
+          if (toolName === 'showPage' && pendingShowPage.value) {
+            const pageId = result  // result 就是 pageId
+            openPageWindow(pendingShowPage.value.title, pendingShowPage.value.type, pageId)
+            pendingShowPage.value = null
           }
         }
       },
@@ -751,6 +775,7 @@ export const useVibeStore = defineStore('vibe', () => {
     stopTTS,
     // 弹窗控制
     openPageWindow,
+    appendPageContent,
     closePageWindow,
     focusPageWindow,
     updateWindowPosition,
