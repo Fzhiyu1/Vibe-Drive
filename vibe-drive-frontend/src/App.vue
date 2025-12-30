@@ -8,7 +8,8 @@ const store = useVibeStore()
 const memoryStore = useMemoryStore()
 
 function showMemory() {
-  store.openPageWindow('用户记忆', memoryStore.memory, 'document')
+  const pageId = store.openPageWindow('用户记忆', 'document')
+  store.appendPageContent(pageId, memoryStore.memory)
 }
 
 // 测试：注入长期记忆

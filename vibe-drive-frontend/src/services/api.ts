@@ -186,8 +186,8 @@ export const masterApi = {
                 callbacks.onError?.(parsed.code, parsed.message || 'Unknown error')
                 break
               case 'complete':
-                // complete 事件在循环结束后处理
-                break
+                callbacks.onComplete?.()
+                return  // 收到 complete 事件后立即结束
               default:
                 // 兼容旧格式：通过字段判断
                 if (parsed.text !== undefined) {

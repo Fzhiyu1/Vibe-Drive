@@ -390,6 +390,34 @@ public class VibeTaskManager {
     }
 
     /**
+     * 注册外部任务（供 /analyze/stream 等非 VibeTaskManager 管理的任务使用）
+     * 让主智能体能感知到这些任务
+     */
+    public String registerExternalTask(String sessionId) {
+        String taskId = generateTaskId();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        CancellationToken cancellationToken = new CancellationToken();
+        VibeTask task = new VibeTask(taskId, sessionId, future, cancellationToken, Instant.now());
+
+        currentTasks.put(sessionId, task);
+        taskToolHistory.put(sessionId, Collections.synchronizedList(new ArrayList<>()));
+        log.info("注册外部任务: taskId={}, sessionId={}", taskId, sessionId);
+
+        return taskId;
+    }
+
+    /**
+     * 注销外部任务
+     */
+    public void unregisterExternalTask(String sessionId, String taskId) {
+        VibeTask task = currentTasks.get(sessionId);
+        if (task != null && task.taskId().equals(taskId)) {
+            currentTasks.remove(sessionId);
+            log.info("注销外部任务: taskId={}, sessionId={}", taskId, sessionId);
+        }
+    }
+
+    /**
      * 生成任务 ID
      */
     private String generateTaskId() {

@@ -12,6 +12,7 @@ import com.vibe.orchestration.callback.SseVibeCallback;
 import com.vibe.orchestration.callback.VibeStreamCallback;
 import com.vibe.orchestration.dto.VibeDialogRequest;
 import com.vibe.orchestration.service.VibeDialogService;
+import com.vibe.orchestration.VibeTaskManager;
 import com.vibe.sse.SseEventPublisher;
 import com.vibe.status.VibeSessionStatusStore;
 import dev.langchain4j.model.chat.response.ChatResponse;
@@ -40,16 +41,19 @@ public class VibeStreamController {
     private final SseEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final VibeSessionStatusStore statusStore;
+    private final VibeTaskManager vibeTaskManager;
 
     public VibeStreamController(
             VibeDialogService dialogService,
             SseEventPublisher eventPublisher,
             ObjectMapper objectMapper,
-            VibeSessionStatusStore statusStore) {
+            VibeSessionStatusStore statusStore,
+            VibeTaskManager vibeTaskManager) {
         this.dialogService = dialogService;
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
         this.statusStore = statusStore;
+        this.vibeTaskManager = vibeTaskManager;
     }
 
     @PostMapping(value = "/analyze/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -85,6 +89,9 @@ public class VibeStreamController {
         // 通知 agent 启动
         eventPublisher.publish(sessionId, AgentStatusChangedEvent.EVENT_TYPE, AgentStatusChangedEvent.started());
 
+        // 注册外部任务，让主智能体能感知
+        String taskId = vibeTaskManager.registerExternalTask(sessionId);
+
         // 创建回调并执行
         SseVibeCallback callback = new SseVibeCallback(emitter, objectMapper, sessionId, debug);
         VibeDialogRequest request = VibeDialogRequest.of(sessionId, environment, preferences);
@@ -112,6 +119,9 @@ public class VibeStreamController {
 
             @Override
             public void onComplete(AmbiencePlan plan, ChatResponse response) {
+                // 注销外部任务
+                vibeTaskManager.unregisterExternalTask(sessionId, taskId);
+
                 callback.onComplete(plan, response);
                 if (plan != null) {
                     statusStore.put(sessionId, VibeStatus.completed(sessionId, plan.safetyMode(), plan, environment));
@@ -124,6 +134,9 @@ public class VibeStreamController {
 
             @Override
             public void onError(Throwable error) {
+                // 注销外部任务
+                vibeTaskManager.unregisterExternalTask(sessionId, taskId);
+
                 callback.onError(error);
                 statusStore.put(sessionId, VibeStatus.completed(sessionId, safetyMode, previousStatus.currentPlan(), environment));
                 eventPublisher.publish(

@@ -323,7 +323,13 @@ export const useVibeStore = defineStore('vibe', () => {
           console.log('[vibeStore] 立即应用歌单:', result)
           break
         case 'playMusic':
-          plan.value = { ...plan.value, playResult: result }
+          // 将单曲作为临时歌单，这样能在歌单列表中显示
+          plan.value = {
+            ...plan.value,
+            playResult: result,
+            playlist: { songs: [result], currentIndex: 0 }
+          }
+          currentPlaylistIndex.value = 0
           if (result.url) {
             playMusic(result.url)
           }
