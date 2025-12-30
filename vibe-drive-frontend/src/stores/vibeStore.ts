@@ -323,17 +323,18 @@ export const useVibeStore = defineStore('vibe', () => {
           console.log('[vibeStore] 立即应用歌单:', result)
           break
         case 'playMusic':
-          // 将单曲作为临时歌单，这样能在歌单列表中显示
+          // 入栈形式：将单曲插入歌单第一条并播放
+          const currentSongs = plan.value?.playlist?.songs || []
           plan.value = {
             ...plan.value,
             playResult: result,
-            playlist: { songs: [result], currentIndex: 0 }
+            playlist: { songs: [result, ...currentSongs], currentIndex: 0 }
           }
           currentPlaylistIndex.value = 0
           if (result.url) {
             playMusic(result.url)
           }
-          console.log('[vibeStore] 立即播放音乐:', result)
+          console.log('[vibeStore] 立即播放音乐（入栈）:', result)
           break
         case 'generateNarrative':
           plan.value = { ...plan.value, narrative: result }
