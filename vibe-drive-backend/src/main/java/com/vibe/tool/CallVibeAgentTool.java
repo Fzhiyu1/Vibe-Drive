@@ -29,6 +29,8 @@ public class CallVibeAgentTool {
         异步启动氛围智能体进行自动编排。立即返回任务 ID，编排结果通过 SSE 实时推送。
 
         参数说明：
+        - vibeDescription: 氛围描述（重要！由你描述想要的氛围方向）
+          示例："浪漫温馨的氛围"、"轻松惬意的周末感觉"、"专注安静适合长途"
         - gpsTag: HIGHWAY/TUNNEL/BRIDGE/URBAN/SUBURBAN/MOUNTAIN/COASTAL/PARKING
         - weather: SUNNY/CLOUDY/RAINY/SNOWY/FOGGY
         - speed: 0-200 km/h
@@ -38,6 +40,7 @@ public class CallVibeAgentTool {
         - routeType: HIGHWAY/URBAN/MOUNTAIN/COASTAL/TUNNEL
         """)
     public String callVibeAgent(
+        @P("氛围描述，描述你想要的氛围方向和感觉") String vibeDescription,
         @P("地理标签") String gpsTag,
         @P("天气") String weather,
         @P("车速 km/h") int speed,
@@ -55,10 +58,10 @@ public class CallVibeAgentTool {
             Environment env = buildEnvironment(gpsTag, weather, speed, userMood,
                                                timeOfDay, passengerCount, routeType);
 
-            log.info("异步启动氛围智能体: sessionId={}, env={}", sessionId, env);
+            log.info("异步启动氛围智能体: sessionId={}, vibeDescription={}, env={}", sessionId, vibeDescription, env);
 
-            // 启动异步任务（自动终止旧任务）
-            String taskId = vibeTaskManager.startTask(sessionId, env);
+            // 启动异步任务（自动终止旧任务），传递氛围描述
+            String taskId = vibeTaskManager.startTask(sessionId, env, vibeDescription);
 
             // 立即返回
             return "已开始编排，任务ID: " + taskId;

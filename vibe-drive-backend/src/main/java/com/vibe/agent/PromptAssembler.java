@@ -57,8 +57,15 @@ public class PromptAssembler {
     /**
      * 组装 User Prompt（包含环境数据）
      */
-    public String assembleUserPrompt(Environment environment, String userPreferences) {
+    public String assembleUserPrompt(Environment environment, String userPreferences, String vibeDescription) {
         StringBuilder sb = new StringBuilder();
+
+        // 如果有氛围描述，优先展示
+        if (vibeDescription != null && !vibeDescription.isBlank()) {
+            sb.append("## 氛围方向（重要）\n");
+            sb.append("请按照以下氛围方向进行编排：**").append(vibeDescription).append("**\n\n");
+        }
+
         sb.append("请分析以下车载环境数据，并编排合适的氛围方案：\n\n");
         sb.append("## 当前环境\n```json\n");
 
@@ -77,6 +84,11 @@ public class PromptAssembler {
         }
 
         sb.append("\n请根据环境数据和安全模式规则，调用合适的工具生成氛围编排方案。");
+
+        // 如果有氛围描述，再次强调
+        if (vibeDescription != null && !vibeDescription.isBlank()) {
+            sb.append("\n\n**注意：编排方案应符合「").append(vibeDescription).append("」的氛围方向。**");
+        }
 
         return sb.toString();
     }

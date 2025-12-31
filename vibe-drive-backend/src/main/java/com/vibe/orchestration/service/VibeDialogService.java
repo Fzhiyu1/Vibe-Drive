@@ -217,7 +217,14 @@ public class VibeDialogService {
                 );
                 log.info("使用增量调整 Prompt: changeDescription={}", request.changeDescription());
             } else {
-                prompt = promptAssembler.assembleUserPrompt(request.environment(), request.userPreferences());
+                prompt = promptAssembler.assembleUserPrompt(
+                    request.environment(),
+                    request.userPreferences(),
+                    request.vibeDescription()
+                );
+                if (request.hasVibeDescription()) {
+                    log.info("使用氛围描述: vibeDescription={}", request.vibeDescription());
+                }
             }
         } else {
             prompt = "请基于已经获得的工具结果，输出最终的氛围推荐理由（简短），不要再调用任何工具。";

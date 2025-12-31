@@ -66,7 +66,15 @@ public class VibeTaskManager {
      * @return 任务 ID
      */
     public String startTask(String sessionId, Environment env) {
-        return startTask(sessionId, env, null, null, null);
+        return startTask(sessionId, env, null, null, null, null);
+    }
+
+    /**
+     * 启动新任务（带氛围描述）
+     * @return 任务 ID
+     */
+    public String startTask(String sessionId, Environment env, String vibeDescription) {
+        return startTask(sessionId, env, vibeDescription, null, null, null);
     }
 
     /**
@@ -74,7 +82,7 @@ public class VibeTaskManager {
      * @return 任务 ID
      */
     public String startTask(String sessionId, Environment env, AmbiencePlan currentPlan, String changeDescription) {
-        return startTask(sessionId, env, currentPlan, changeDescription, null);
+        return startTask(sessionId, env, null, currentPlan, changeDescription, null);
     }
 
     /**
@@ -82,6 +90,13 @@ public class VibeTaskManager {
      * @return 任务 ID
      */
     public String startTask(String sessionId, Environment env, AmbiencePlan currentPlan, String changeDescription, Integer currentPlaylistIndex) {
+        return startTask(sessionId, env, null, currentPlan, changeDescription, currentPlaylistIndex);
+    }
+
+    /**
+     * 核心启动方法
+     */
+    private String startTask(String sessionId, Environment env, String vibeDescription, AmbiencePlan currentPlan, String changeDescription, Integer currentPlaylistIndex) {
         // 1. 终止旧任务
         cancelTask(sessionId);
 
@@ -104,7 +119,7 @@ public class VibeTaskManager {
                 taskId, sessionId, changeDescription != null);
 
         // 4. 异步执行
-        executor.submit(() -> executeTask(task, env, currentPlan, changeDescription, currentPlaylistIndex));
+        executor.submit(() -> executeTask(task, env, vibeDescription, currentPlan, changeDescription, currentPlaylistIndex));
 
         return taskId;
     }
@@ -156,7 +171,7 @@ public class VibeTaskManager {
     /**
      * 执行任务
      */
-    private void executeTask(VibeTask task, Environment env, AmbiencePlan currentPlan, String changeDescription, Integer currentPlaylistIndex) {
+    private void executeTask(VibeTask task, Environment env, String vibeDescription, AmbiencePlan currentPlan, String changeDescription, Integer currentPlaylistIndex) {
         String sessionId = task.sessionId();
         String taskId = task.taskId();
         CancellationToken cancellationToken = task.cancellationToken();
@@ -166,7 +181,7 @@ public class VibeTaskManager {
             if (changeDescription != null && !changeDescription.isBlank()) {
                 request = VibeDialogRequest.forAdjustment(sessionId, taskId, env, currentPlan, changeDescription, currentPlaylistIndex);
             } else {
-                request = VibeDialogRequest.of(sessionId, taskId, env);
+                request = VibeDialogRequest.of(sessionId, taskId, env, vibeDescription);
             }
 
             vibeDialogService.executeDialog(request, new VibeStreamCallback() {
